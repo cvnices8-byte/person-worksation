@@ -1,5 +1,5 @@
-import { db } from "./db.js";
-import { fallbackPapers, learningPaths, moduleById, modules, yearlyPhases } from "./data.js";
+import { db } from "./db.js?v=20260920-2";
+import { fallbackPapers, learningPaths, moduleById, modules, yearlyPhases } from "./data.js?v=20260920-2";
 
 const state = {
   tasks: [],
