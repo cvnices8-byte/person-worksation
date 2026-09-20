@@ -1,0 +1,18 @@
+{
+  "name": "研习台 · Personal Workstation",
+  "short_name": "研习台",
+  "description": "本地优先的个人学习工作站",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7f4",
+  "theme_color": "#152a38",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

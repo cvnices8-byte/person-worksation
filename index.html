@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#152a38" />
+    <meta
+      name="description"
+      content="一个本地优先的个人学习工作站：学习、训练、论文精读与复盘。"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>研习台 · Personal Workstation</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <div class="app-shell">
+      <aside class="rail" aria-label="主导航">
+        <a class="brand" href="#today" aria-label="研习台首页">
+          <span class="brand-mark">研</span>
+          <span class="brand-name">研习台</span>
+        </a>
+
+        <nav class="nav-list">
+          <button class="nav-item is-active" data-view="today">
+            <span class="nav-index">今</span><span>今日</span>
+          </button>
+          <button class="nav-item" data-view="modules">
+            <span class="nav-index">学</span><span>模块</span>
+          </button>
+          <button class="nav-item" data-view="papers">
+            <span class="nav-index">论</span><span>论文</span>
+          </button>
+          <button class="nav-item" data-view="health">
+            <span class="nav-index">体</span><span>健康</span>
+          </button>
+          <button class="nav-item" data-view="review">
+            <span class="nav-index">复</span><span>复盘</span>
+          </button>
+        </nav>
+
+        <div class="rail-foot">
+          <span class="local-dot" aria-hidden="true"></span>
+          数据仅存本机
+        </div>
+      </aside>
+
+      <main id="main" class="main-stage">
+        <header class="topbar">
+          <div>
+            <p class="date-line" id="date-line"></p>
+            <h1 id="view-title">把今天学扎实。</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="button button-quiet" id="install-app" hidden>安装应用</button>
+            <button class="button button-primary" data-open-dialog="session-dialog">
+              记录学习
+            </button>
+          </div>
+        </header>
+
+        <section class="view is-active" id="view-today" aria-labelledby="view-title">
+          <div class="day-ruler" aria-label="今日六小时学习进度">
+            <div class="ruler-head">
+              <div>
+                <span class="ruler-kicker">今日有效学习</span>
+                <strong><span id="today-hours">0.0</span><small> / 6h</small></strong>
+              </div>
+              <p id="day-status">从第一个专注块开始。</p>
+            </div>
+            <div class="ruler-track" id="ruler-track"></div>
+            <div class="ruler-labels" aria-hidden="true">
+              <span>0</span><span>1h</span><span>2h</span><span>3h</span><span>4h</span><span>5h</span><span>6h</span>
+            </div>
+          </div>
+
+          <div class="today-grid">
+            <section class="focus-panel panel">
+              <div class="section-heading">
+                <div>
+                  <p>行动清单</p>
+                  <h2>今天先完成这些</h2>
+                </div>
+                <button class="text-button" data-open-dialog="task-dialog">添加任务</button>
+              </div>
+              <div class="task-list" id="task-list"></div>
+            </section>
+
+            <aside class="week-panel panel">
+              <div class="section-heading">
+                <div>
+                  <p>本周配额</p>
+                  <h2>42小时，不重复计算</h2>
+                </div>
+              </div>
+              <div class="module-progress-list" id="week-progress"></div>
+            </aside>
+
+            <section class="paper-prompt panel panel-dark">
+              <p>论文 × 英语</p>
+              <h2>一篇论文，两类成果。</h2>
+              <span>理解方法，再用英文讲清楚。</span>
+              <button class="button button-light" data-view-jump="papers">开始论文训练</button>
+            </section>
+
+            <section class="recent-panel panel">
+              <div class="section-heading">
+                <div>
+                  <p>刚刚发生</p>
+                  <h2>最近记录</h2>
+                </div>
+              </div>
+              <div id="recent-sessions" class="recent-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-modules">
+          <div class="intro-copy">
+            <p>能力结构</p>
+            <h2>所有学习都要落到一次作答、一次表达或一个作品。</h2>
+          </div>
+          <div class="module-board" id="module-board"></div>
+        </section>
+
+        <section class="view" id="view-papers">
+          <div class="paper-layout">
+            <div class="intro-copy">
+              <p>论文精读台</p>
+              <h2>保留英文原文，用中文确认理解，再用英文完成输出。</h2>
+            </div>
+
+            <form class="paper-form panel" id="paper-form">
+              <label>
+                论文标题
+                <input name="title" required placeholder="例如：Attention Is All You Need" />
+              </label>
+              <label>
+                原文链接
+                <input name="url" type="url" placeholder="https://..." />
+              </label>
+              <label>
+                专业理解
+                <textarea name="insight" rows="4" placeholder="研究问题、方法、结果与局限"></textarea>
+              </label>
+              <label>
+                英文摘要
+                <textarea name="summary" rows="4" placeholder="Write 100–200 words in your own language."></textarea>
+              </label>
+              <label>
+                值得主动使用的表达
+                <textarea name="phrases" rows="3" placeholder="每行一个词组或句型"></textarea>
+              </label>
+              <button class="button button-primary" type="submit">保存论文学习包</button>
+            </form>
+
+            <div class="paper-library">
+              <div class="section-heading">
+                <div><p>学习包</p><h2>最近论文</h2></div>
+              </div>
+              <div id="paper-list" class="paper-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-health">
+          <div class="health-layout">
+            <div class="intro-copy">
+              <p>身体底盘</p>
+              <h2>看趋势，不被某一天的数字牵着走。</h2>
+            </div>
+
+            <form class="health-form panel" id="health-form">
+              <label>体重（kg）<input name="weight" type="number" min="30" max="250" step="0.1" required /></label>
+              <label>腰围（cm）<input name="waist" type="number" min="40" max="200" step="0.1" /></label>
+              <label>睡眠（小时）<input name="sleep" type="number" min="0" max="24" step="0.1" /></label>
+              <label>步数<input name="steps" type="number" min="0" step="100" /></label>
+              <label>训练
+                <select name="training">
+                  <option value="休息/恢复">休息/恢复</option>
+                  <option value="上肢力量">上肢力量</option>
+                  <option value="下肢力量">下肢力量</option>
+                  <option value="有氧">有氧</option>
+                  <option value="全身训练">全身训练</option>
+                </select>
+              </label>
+              <button class="button button-primary" type="submit">保存今日记录</button>
+            </form>
+
+            <div class="health-summary panel" id="health-summary"></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-review">
+          <div class="review-layout">
+            <div class="intro-copy">
+              <p>交给 Obsidian</p>
+              <h2>网站提供事实，复盘负责作出判断。</h2>
+            </div>
+
+            <div class="review-sheet panel" id="review-preview"></div>
+
+            <aside class="export-panel panel">
+              <h2>导出与备份</h2>
+              <p>周报导出为Markdown；完整备份包含本机所有记录。</p>
+              <button class="button button-primary" id="export-review">下载本周复盘</button>
+              <button class="button button-quiet" id="export-backup">导出完整备份</button>
+              <label class="button button-quiet file-button">
+                恢复备份
+                <input id="import-backup" type="file" accept="application/json" />
+              </label>
+            </aside>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="session-dialog">
+      <form method="dialog" class="dialog-form" id="session-form">
+        <div class="dialog-head"><h2>记录一次有效学习</h2><button value="cancel" aria-label="关闭">×</button></div>
+        <label>模块<select name="moduleId" id="session-module"></select></label>
+        <label>时长（分钟）<input name="minutes" type="number" min="5" max="360" step="5" value="45" required /></label>
+        <label>完成了什么<textarea name="note" rows="3" placeholder="写下可验证的结果"></textarea></label>
+        <button class="button button-primary" value="default" type="submit">保存记录</button>
+      </form>
+    </dialog>
+
+    <dialog id="task-dialog">
+      <form method="dialog" class="dialog-form" id="task-form">
+        <div class="dialog-head"><h2>添加今日任务</h2><button value="cancel" aria-label="关闭">×</button></div>
+        <label>任务<input name="title" required placeholder="使用动词描述结果" /></label>
+        <label>模块<select name="moduleId" id="task-module"></select></label>
+        <label>预计时长（分钟）<input name="minutes" type="number" min="5" max="360" step="5" value="45" required /></label>
+        <button class="button button-primary" value="default" type="submit">添加任务</button>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
