@@ -14,6 +14,9 @@ const { chromium } = require("playwright");
   const context = await browser.newContext({ acceptDownloads: true });
   const page = await context.newPage();
   const consoleErrors = [];
+  await page.route("https://huggingface.co/api/daily_papers", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "{" }),
+  );
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
   });
@@ -23,6 +26,12 @@ const { chromium } = require("playwright");
 
   if (!(await page.getByRole("heading", { name: "把今天学扎实。" }).isVisible())) throw new Error("首页标题未显示");
   if ((await page.locator(".task-item").count()) !== 4) throw new Error("初始任务数量不正确");
+
+  await page.getByRole("button", { name: "安排今天" }).click();
+  if ((await page.locator(".planner-row").count()) !== 4) throw new Error("自动排课未生成四个学习块");
+  await page.getByRole("button", { name: "应用今日计划" }).click();
+  await page.locator("#planner-dialog").waitFor({ state: "hidden" });
+
   await page.locator(".task-check").first().check();
   await page.waitForSelector(".task-item.is-done");
   if ((await page.locator(".task-item.is-done").count()) !== 1) throw new Error("任务完成状态未保存");
@@ -35,7 +44,23 @@ const { chromium } = require("playwright");
   await page.waitForFunction(() => document.querySelector("#today-hours")?.textContent === "0.8");
   if ((await page.locator("#today-hours").innerText()) !== "0.8") throw new Error("学习时长未更新");
 
+  await page.locator('[data-view="modules"]').click();
+  if (!(await page.getByRole("heading", { name: "长线投入分成四次清晰推进。" }).isVisible())) throw new Error("年度路线未显示");
+  const dataModule = page.locator(".module-card").filter({ has: page.getByRole("heading", { name: "数据科学与 AI" }) });
+  if ((await dataModule.locator(".course-unit").count()) !== 6) throw new Error("数据科学课程树不完整");
+  await dataModule.locator('[data-course-unit="ds-python-sql"]').check();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll(".module-card")].some((card) => card.textContent.includes("数据科学与 AI") && card.textContent.includes("1 / 6 个阶段完成")),
+  );
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: path.join(output, "modules.png"), fullPage: true });
+
   await page.locator('[data-view="papers"]').click();
+  await page.waitForFunction(() => document.querySelectorAll(".daily-paper").length >= 4);
+  if (!(await page.locator("#paper-feed-status").innerText()).includes("本机基础精选")) throw new Error("离线论文推荐未启用");
+  await page.locator("[data-start-paper]").first().click();
+  if (!(await page.locator("#paper-form input[name=title]").inputValue())) throw new Error("论文推荐未加入精读台");
+  await page.screenshot({ path: path.join(output, "paper-feed.png"), fullPage: true });
   await page.locator("#paper-form input[name=title]").fill("A test paper");
   await page.locator("#paper-form textarea[name=insight]").fill("验证专业理解记录。");
   await page.locator("#paper-form textarea[name=summary]").fill("This paper tests the study workflow.");

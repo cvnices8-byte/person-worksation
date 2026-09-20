@@ -1,12 +1,17 @@
 import { db } from "./db.js";
-import { moduleById, moduleMilestones, modules, starterTasks } from "./data.js";
+import { fallbackPapers, learningPaths, moduleById, modules, yearlyPhases } from "./data.js";
 
 const state = {
   tasks: [],
   sessions: [],
   papers: [],
   health: [],
+  settings: [],
+  dailyPapers: [],
+  paperFeedStatus: "正在获取最新论文…",
 };
+
+let plannerDraft = [];
 
 const viewTitles = {
   today: "把今天学扎实。",
@@ -55,6 +60,25 @@ function showToast(message) {
   window.setTimeout(() => toast.classList.remove("is-visible"), 2200);
 }
 
+function getSetting(id, fallback) {
+  return state.settings.find((item) => item.id === id) || fallback;
+}
+
+function learningPlan() {
+  return getSetting("learning-plan", {
+    id: "learning-plan",
+    activePhase: yearlyPhases[0].id,
+    completedUnits: {},
+  });
+}
+
+async function saveSetting(value) {
+  const index = state.settings.findIndex((item) => item.id === value.id);
+  if (index >= 0) state.settings[index] = value;
+  else state.settings.push(value);
+  await db.put("settings", value);
+}
+
 function downloadFile(filename, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -69,7 +93,7 @@ async function seedTodayTasks() {
   const existing = state.tasks.filter((task) => task.date === todayKey());
   if (existing.length) return;
 
-  for (const task of starterTasks) {
+  for (const task of buildDailyPlan(360)) {
     await db.put("tasks", {
       ...task,
       id: crypto.randomUUID(),
@@ -79,6 +103,52 @@ async function seedTodayTasks() {
     });
   }
   state.tasks = await db.getAll("tasks");
+}
+
+function moduleMinutesThisWeek(moduleId) {
+  return currentWeekSessions()
+    .filter((session) => session.moduleId === moduleId)
+    .reduce((sum, session) => sum + Number(session.minutes), 0);
+}
+
+function currentUnit(moduleId) {
+  const completed = learningPlan().completedUnits || {};
+  const path = learningPaths[moduleId] || [];
+  return path.find((unit) => !completed[unit.id]) || path.at(-1);
+}
+
+function buildDailyPlan(totalMinutes) {
+  if (totalMinutes <= 0) return [];
+
+  const studyModules = modules
+    .filter((module) => ["data-ai", "cpa", "civil", "english"].includes(module.id))
+    .sort((a, b) => {
+      const aGap = Math.max(a.targetHours * 60 - moduleMinutesThisWeek(a.id), 0) / (a.targetHours * 60);
+      const bGap = Math.max(b.targetHours * 60 - moduleMinutesThisWeek(b.id), 0) / (b.targetHours * 60);
+      return bGap - aGap;
+    });
+
+  const preferredBlocks = [120, 90, 90, 60];
+  const durations = [];
+  let remaining = totalMinutes;
+  for (const preferred of preferredBlocks) {
+    if (remaining <= 0) break;
+    let block = Math.min(preferred, remaining);
+    if (remaining - block > 0 && remaining - block < 30) block = remaining - 30;
+    if (block > 0) durations.push(block);
+    remaining -= block;
+  }
+  if (remaining > 0) durations[durations.length - 1] += remaining;
+
+  return durations.map((minutes, index) => {
+    const module = studyModules[index % studyModules.length];
+    const unit = currentUnit(module.id);
+    return {
+      title: unit ? `${unit.title}：${unit.output}` : `推进${module.name}当前内容`,
+      moduleId: module.id,
+      minutes,
+    };
+  });
 }
 
 function currentWeekSessions() {
@@ -199,21 +269,210 @@ function renderRecentSessions() {
     .join("");
 }
 
-function renderModules() {
-  document.querySelector("#module-board").innerHTML = modules
-    .map((module) => `
-      <article class="module-card">
-        <div class="module-card-head">
-          <span class="module-code" style="background:${module.color}">${module.short}</span>
-          <span>${module.targetHours}h / 周</span>
-        </div>
-        <h3>${escapeHtml(module.name)}</h3>
-        <p>${escapeHtml(module.description)}</p>
-        <div class="milestone-list">
-          ${moduleMilestones[module.id].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
-        </div>
-      </article>`)
+function renderRoadmap() {
+  const plan = learningPlan();
+  document.querySelector("#phase-track").innerHTML = yearlyPhases
+    .map((phase, index) => `
+      <button class="phase-step ${plan.activePhase === phase.id ? "is-active" : ""}" data-phase-id="${phase.id}" type="button">
+        <span class="phase-number">${index + 1}</span>
+        <span class="phase-copy">
+          <strong>${escapeHtml(phase.name)}</strong>
+          <small>${escapeHtml(phase.weeks)}</small>
+          <span>${escapeHtml(phase.objective)}</span>
+        </span>
+      </button>`)
     .join("");
+
+  document.querySelectorAll("[data-phase-id]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const next = { ...learningPlan(), activePhase: button.dataset.phaseId };
+      await saveSetting(next);
+      renderRoadmap();
+      renderReview();
+      showToast("当前阶段已更新");
+    });
+  });
+}
+
+function renderModules() {
+  const completed = learningPlan().completedUnits || {};
+  document.querySelector("#module-board").innerHTML = modules
+    .map((module) => {
+      const path = learningPaths[module.id] || [];
+      const completeCount = path.filter((unit) => completed[unit.id]).length;
+      const progress = path.length ? Math.round((completeCount / path.length) * 100) : 0;
+      return `
+        <article class="module-card ${["data-ai", "english"].includes(module.id) ? "is-priority" : ""}">
+          <div class="module-card-head">
+            <span class="module-code" style="background:${module.color}">${module.short}</span>
+            <span>${module.targetHours}h / 周</span>
+          </div>
+          <h3>${escapeHtml(module.name)}</h3>
+          <p>${escapeHtml(module.description)}</p>
+          <div class="course-progress" aria-label="${escapeHtml(module.name)}课程完成度">
+            <span style="width:${progress}%;background:${module.color}"></span>
+          </div>
+          <div class="course-progress-copy">${completeCount} / ${path.length} 个阶段完成</div>
+          <div class="course-unit-list">
+            ${path
+              .map(
+                (unit) => `
+                  <label class="course-unit ${completed[unit.id] ? "is-complete" : ""}">
+                    <input type="checkbox" data-course-unit="${unit.id}" ${completed[unit.id] ? "checked" : ""} />
+                    <span>
+                      <strong>${escapeHtml(unit.title)}</strong>
+                      <small>${escapeHtml(unit.focus)}</small>
+                      <em>${escapeHtml(unit.output)}</em>
+                    </span>
+                  </label>`,
+              )
+              .join("")}
+          </div>
+        </article>`;
+    })
+    .join("");
+
+  document.querySelectorAll("[data-course-unit]").forEach((checkbox) => {
+    checkbox.addEventListener("change", async () => {
+      const plan = learningPlan();
+      const next = {
+        ...plan,
+        completedUnits: { ...(plan.completedUnits || {}), [checkbox.dataset.courseUnit]: checkbox.checked },
+      };
+      await saveSetting(next);
+      renderModules();
+      renderReview();
+      showToast(checkbox.checked ? "课程阶段已完成" : "课程阶段已重新打开");
+    });
+  });
+}
+
+function normalizeDailyPaper(entry) {
+  const paper = entry.paper || entry;
+  const id = paper.id || entry.id;
+  if (!id || !paper.title) return null;
+  return {
+    id,
+    title: paper.title,
+    summary: paper.summary || entry.summary || "",
+    authors: (paper.authors || [])
+      .slice(0, 3)
+      .map((author) => author.name || author.user?.fullname)
+      .filter(Boolean),
+    upvotes: Number(paper.upvotes || entry.upvotes || 0),
+    publishedAt: paper.publishedAt || entry.publishedAt || "",
+    url: `https://huggingface.co/papers/${id}`,
+    source: "Hugging Face Daily Papers",
+  };
+}
+
+function isRelevantPaper(paper) {
+  const text = `${paper.title} ${paper.summary}`.toLowerCase();
+  return [
+    "machine learning",
+    "language model",
+    "llm",
+    "agent",
+    "retrieval",
+    "reasoning",
+    "neural",
+    "data",
+    "transformer",
+    "benchmark",
+    "vision",
+    "reinforcement",
+  ].some((keyword) => text.includes(keyword));
+}
+
+async function loadDailyPapers(force = false) {
+  const cache = getSetting("daily-paper-feed", null);
+  if (!force && cache?.date === todayKey() && cache.items?.length) {
+    state.dailyPapers = cache.items;
+    state.paperFeedStatus = "今日推荐已就绪 · 在线内容已缓存到本机";
+    renderDailyPapers();
+    return;
+  }
+
+  state.paperFeedStatus = "正在获取最新论文…";
+  renderDailyPapers();
+  try {
+    const response = await fetch("https://huggingface.co/api/daily_papers", {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error(`Paper feed ${response.status}`);
+    const payload = await response.json();
+    const normalized = payload.map(normalizeDailyPaper).filter(Boolean);
+    const relevant = normalized.filter(isRelevantPaper);
+    state.dailyPapers = (relevant.length >= 4 ? relevant : normalized).slice(0, 6);
+    state.paperFeedStatus = "今日已更新 · 来源 Hugging Face Daily Papers";
+    await saveSetting({ id: "daily-paper-feed", date: todayKey(), items: state.dailyPapers });
+  } catch (error) {
+    console.warn("Daily paper feed unavailable; using local selection.", error);
+    const previous = cache?.items?.length ? cache.items : fallbackPapers;
+    const offset = Number(todayKey().replaceAll("-", "")) % previous.length;
+    state.dailyPapers = [...previous.slice(offset), ...previous.slice(0, offset)].slice(0, 5);
+    state.paperFeedStatus = cache?.items?.length
+      ? "网络暂不可用 · 显示最近一次缓存"
+      : "网络暂不可用 · 显示本机基础精选";
+  }
+  renderDailyPapers();
+}
+
+function renderDailyPapers() {
+  const status = document.querySelector("#paper-feed-status");
+  const container = document.querySelector("#daily-paper-list");
+  if (!status || !container) return;
+  status.textContent = state.paperFeedStatus;
+  if (!state.dailyPapers.length) {
+    container.innerHTML = '<div class="empty-state">正在整理今天的论文推荐。</div>';
+    return;
+  }
+
+  const readPapers = getSetting("read-papers", { items: {} }).items || {};
+  container.innerHTML = state.dailyPapers
+    .map(
+      (paper, index) => `
+        <article class="daily-paper ${index === 0 ? "is-featured" : ""} ${readPapers[paper.id] ? "is-read" : ""}">
+          <div class="paper-rank">${index === 0 ? "今日必读" : `备选 ${index}`}</div>
+          <h3>${escapeHtml(paper.title)}</h3>
+          <p>${escapeHtml(paper.summary || "打开原文，通过摘要判断它是否值得继续阅读。")}</p>
+          <div class="paper-meta">
+            <span>${escapeHtml(paper.authors?.join("、") || paper.source || "论文推荐")}</span>
+            ${paper.upvotes ? `<span>${paper.upvotes} 票</span>` : ""}
+          </div>
+          <div class="paper-actions">
+            <a class="text-button" href="${escapeHtml(paper.url)}" target="_blank" rel="noreferrer">打开原文</a>
+            <button class="text-button" type="button" data-start-paper="${paper.id}">加入今日精读</button>
+            <button class="text-button" type="button" data-read-paper="${paper.id}">${readPapers[paper.id] ? "取消已读" : "标记已读"}</button>
+          </div>
+          ${index === 0 ? '<div class="paper-method"><span>5 分钟扫摘要</span><span>5 分钟找问题</span><span>5 分钟摘表达</span><span>5 分钟英文复述</span></div>' : ""}
+        </article>`,
+    )
+    .join("");
+
+  container.querySelectorAll("[data-start-paper]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const paper = state.dailyPapers.find((item) => item.id === button.dataset.startPaper);
+      if (!paper) return;
+      const form = document.querySelector("#paper-form");
+      form.elements.title.value = paper.title;
+      form.elements.url.value = paper.url;
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      form.elements.insight.focus({ preventScroll: true });
+      showToast("已加入精读台，先写研究问题");
+    });
+  });
+
+  container.querySelectorAll("[data-read-paper]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const setting = getSetting("read-papers", { id: "read-papers", items: {} });
+      const items = { ...(setting.items || {}) };
+      if (items[button.dataset.readPaper]) delete items[button.dataset.readPaper];
+      else items[button.dataset.readPaper] = new Date().toISOString();
+      await saveSetting({ ...setting, items });
+      renderDailyPapers();
+    });
+  });
 }
 
 function renderPapers() {
@@ -259,7 +518,11 @@ function reviewData() {
   const doneTasks = weekTasks.filter((task) => task.done).length;
   const completion = weekTasks.length ? Math.round((doneTasks / weekTasks.length) * 100) : 0;
   const paperCount = state.papers.filter((paper) => new Date(paper.createdAt) >= startOfWeek()).length;
-  return { sessions, minutes, weekTasks, doneTasks, completion, paperCount };
+  const plan = learningPlan();
+  const totalUnits = Object.values(learningPaths).flat().length;
+  const completedUnits = Object.values(plan.completedUnits || {}).filter(Boolean).length;
+  const phase = yearlyPhases.find((item) => item.id === plan.activePhase) || yearlyPhases[0];
+  return { sessions, minutes, weekTasks, doneTasks, completion, paperCount, totalUnits, completedUnits, phase };
 }
 
 function buildMarkdownReview() {
@@ -282,6 +545,8 @@ function buildMarkdownReview() {
 - 任务完成率：${data.completion}%
 - 完成任务：${data.doneTasks} / ${data.weekTasks.length}
 - 论文学习包：${data.paperCount}
+- 年度阶段：${data.phase.name}（${data.phase.weeks}）
+- 课程树进度：${data.completedUnits} / ${data.totalUnits}
 
 ## 2. 模块投入
 
@@ -323,7 +588,7 @@ function renderReview() {
     </div>
     <div class="review-notes">
       <h3>复盘不在这里完成</h3>
-      <p>下载Markdown并在Obsidian里判断：哪些投入有效、问题在哪里、下一周需要改变什么。</p>
+      <p>当前处于“${escapeHtml(data.phase.name)}”阶段，课程树完成 ${data.completedUnits} / ${data.totalUnits}。下载Markdown并在Obsidian里判断：哪些投入有效、问题在哪里、下一周需要改变什么。</p>
     </div>`;
 }
 
@@ -332,7 +597,9 @@ function renderAll() {
   renderTasks();
   renderWeekProgress();
   renderRecentSessions();
+  renderRoadmap();
   renderModules();
+  renderDailyPapers();
   renderPapers();
   renderHealth();
   renderReview();
@@ -368,6 +635,58 @@ function setupDialogs() {
   const options = modules.map((module) => `<option value="${module.id}">${module.name}</option>`).join("");
   document.querySelector("#session-module").innerHTML = options;
   document.querySelector("#task-module").innerHTML = options;
+}
+
+function renderPlannerDraft() {
+  const container = document.querySelector("#planner-preview");
+  const total = plannerDraft.reduce((sum, task) => sum + Number(task.minutes), 0);
+  container.innerHTML = plannerDraft
+    .map((task) => {
+      const module = moduleById(task.moduleId) || modules[0];
+      return `<div class="planner-row">
+        <span class="planner-color" style="background:${module.color}"></span>
+        <span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(module.name)}</small></span>
+        <b>${formatMinutes(task.minutes)}</b>
+      </div>`;
+    })
+    .join("");
+  document.querySelector("#planner-total").textContent = `待安排 ${formatMinutes(total)}；已记录的学习时间不会重复排入。`;
+}
+
+function setupPlannerAndFeed() {
+  document.querySelector("#open-planner").addEventListener("click", () => {
+    const recorded = todaySessions().reduce((sum, session) => sum + Number(session.minutes), 0);
+    plannerDraft = buildDailyPlan(Math.max(360 - recorded, 0));
+    if (!plannerDraft.length) {
+      showToast("今天已记录满 6 小时，无需继续排课");
+      return;
+    }
+    renderPlannerDraft();
+    document.querySelector("#planner-dialog").showModal();
+  });
+
+  document.querySelector("#planner-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const replaceable = state.tasks.filter((task) => task.date === todayKey() && !task.done);
+    await Promise.all(replaceable.map((task) => db.delete("tasks", task.id)));
+    for (const task of plannerDraft) {
+      await db.put("tasks", {
+        ...task,
+        id: crypto.randomUUID(),
+        date: todayKey(),
+        done: false,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    state.tasks = await db.getAll("tasks");
+    formElement.closest("dialog").close();
+    renderTasks();
+    renderReview();
+    showToast("今日计划已应用");
+  });
+
+  document.querySelector("#refresh-paper-feed").addEventListener("click", () => loadDailyPapers(true));
 }
 
 function setupForms() {
@@ -506,11 +825,12 @@ function setupPwa() {
 }
 
 async function loadState() {
-  [state.tasks, state.sessions, state.papers, state.health] = await Promise.all([
+  [state.tasks, state.sessions, state.papers, state.health, state.settings] = await Promise.all([
     db.getAll("tasks"),
     db.getAll("sessions"),
     db.getAll("papers"),
     db.getAll("health"),
+    db.getAll("settings"),
   ]);
 }
 
@@ -526,10 +846,12 @@ async function init() {
   await seedTodayTasks();
   setupNavigation();
   setupDialogs();
+  setupPlannerAndFeed();
   setupForms();
   setupExports();
   setupPwa();
   renderAll();
+  loadDailyPapers();
 }
 
 init().catch((error) => {

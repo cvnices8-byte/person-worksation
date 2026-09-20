@@ -1,4 +1,4 @@
-const CACHE_NAME = "yanxi-workstation-v1";
+const CACHE_NAME = "yanxi-workstation-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
