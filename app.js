@@ -1,4 +1,4 @@
-import { db } from "./db.js?v=20260921-7";
+import { db } from "./db.js?v=20260921-8";
 import {
   codingExercises,
   cpaQuestionBank,
@@ -16,7 +16,7 @@ import {
   paperCategories,
   shadowingSentences,
   yearlyPhases,
-} from "./data.js?v=20260921-7";
+} from "./data.js?v=20260921-8";
 
 const state = {
   tasks: [],
@@ -31,6 +31,7 @@ const state = {
   activeExerciseId: codingExercises[0].id,
   cpaView: "today",
   activeCpaSubjectId: cpaSubjects[0].id,
+  activeCpaChapterIndex: 0,
   cpaQuestionIndex: 0,
   cpaAnswered: null,
   englishView: "today",
@@ -622,6 +623,7 @@ function renderCpaToday() {
   });
   document.querySelector("#cpa-active-subject").addEventListener("change", (event) => {
     state.activeCpaSubjectId = event.target.value;
+    state.activeCpaChapterIndex = 0;
     state.cpaQuestionIndex = 0;
     state.cpaAnswered = null;
     renderCpaStudio();
@@ -639,6 +641,10 @@ function renderCpaToday() {
 function renderCpaMap() {
   const practice = cpaPracticeState();
   const subject = currentCpaSubject();
+  const selectedChapter = subject.chapters[state.activeCpaChapterIndex] || subject.chapters[0];
+  const selectedChapterNumber = String(state.activeCpaChapterIndex + 1).padStart(2, "0");
+  const selectedQuestions = cpaQuestionBank.filter((question) => question.subjectId === subject.id && question.chapter === selectedChapter);
+  const hasFocusLesson = subject.focusLesson.chapter === selectedChapter;
   const completedCount = subject.chapters.filter((_, index) => practice.completedChapters?.[`${subject.id}:${index}`]).length;
   document.querySelector("#cpa-map").innerHTML = `
     <div class="cpa-map-layout">
@@ -651,24 +657,33 @@ function renderCpaMap() {
       <section class="cpa-chapter-sheet">
         <header><div><span>${escapeHtml(subject.duration)} · 2026 题型参考</span><h3>${escapeHtml(subject.name)}</h3></div><strong>${completedCount}<small> / ${subject.chapters.length}</small></strong></header>
         <div class="cpa-score-strip">${subject.questionTypes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
-        <article class="cpa-focus-lesson">
-          <div><span>本周重点讲义</span><h4>${escapeHtml(subject.focusLesson.chapter)}</h4><p>${escapeHtml(subject.focusLesson.essence)}</p></div>
-          <ol>${subject.focusLesson.framework.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
-          <aside><strong>易错点</strong><span>${escapeHtml(subject.focusLesson.pitfall)}</span></aside>
+        <article class="cpa-chapter-reader" id="cpa-chapter-reader">
+          <header><span>第 ${selectedChapterNumber} 章</span><h4>${escapeHtml(selectedChapter)}</h4><p>${hasFocusLesson ? escapeHtml(subject.focusLesson.essence) : "按理解、应用、综合三个层级推进本章；完成后再勾选归档。"}</p></header>
+          <div class="cpa-chapter-levels">
+            ${hasFocusLesson ? subject.focusLesson.framework.map((item, index) => `<div><b>${index + 1}</b><span><strong>${["理解本质", "应用规则", "综合输出"][index]}</strong><small>${escapeHtml(item)}</small></span></div>`).join("") : `<div><b>1</b><span><strong>理解本质</strong><small>整理定义、适用条件与关键术语。</small></span></div><div><b>2</b><span><strong>应用规则</strong><small>完成基础题，并解释每个选项的判断依据。</small></span></div><div><b>3</b><span><strong>综合输出</strong><small>闭卷复述框架，留下公式、分录或案例答案。</small></span></div>`}
+          </div>
+          ${hasFocusLesson ? `<aside><strong>本章易错点</strong><span>${escapeHtml(subject.focusLesson.pitfall)}</span></aside>` : ""}
+          <footer><a class="button button-quiet" href="${subject.sourceUrl}" target="_blank" rel="noreferrer">打开教材资料库</a><button class="button button-quiet" type="button" id="open-cpa-tutor-chapter">用 AI 学本章</button><button class="button button-primary" type="button" id="open-cpa-chapter-drill" ${selectedQuestions.length ? "" : "disabled"}>${selectedQuestions.length ? `练本章题 · ${selectedQuestions.length}` : "本章题库待接入"}</button></footer>
         </article>
         <div class="cpa-chapter-list">
           ${subject.chapters.map((chapter, index) => {
             const key = `${subject.id}:${index}`;
-            return `<label class="cpa-chapter ${practice.completedChapters?.[key] ? "is-done" : ""}"><input type="checkbox" data-cpa-chapter="${key}" ${practice.completedChapters?.[key] ? "checked" : ""}><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(chapter)}</strong></label>`;
+            return `<div class="cpa-chapter ${practice.completedChapters?.[key] ? "is-done" : ""} ${index === state.activeCpaChapterIndex ? "is-active" : ""}"><label title="标记章节完成"><input type="checkbox" data-cpa-chapter="${key}" ${practice.completedChapters?.[key] ? "checked" : ""}><span class="sr-only">标记 ${escapeHtml(chapter)} 完成</span></label><button type="button" data-cpa-open-chapter="${index}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(chapter)}</strong><em>${index === state.activeCpaChapterIndex ? "学习中" : "打开"}</em></button></div>`;
           }).join("")}
         </div>
       </section>
     </div>`;
   document.querySelectorAll("[data-cpa-subject]").forEach((button) => button.addEventListener("click", () => {
     state.activeCpaSubjectId = button.dataset.cpaSubject;
+    state.activeCpaChapterIndex = 0;
     state.cpaQuestionIndex = 0;
     state.cpaAnswered = null;
     renderCpaStudio();
+  }));
+  document.querySelectorAll("[data-cpa-open-chapter]").forEach((button) => button.addEventListener("click", () => {
+    state.activeCpaChapterIndex = Number(button.dataset.cpaOpenChapter);
+    renderCpaMap();
+    document.querySelector("#cpa-chapter-reader")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }));
   document.querySelectorAll("[data-cpa-chapter]").forEach((checkbox) => checkbox.addEventListener("change", async () => {
     const next = cpaPracticeState();
@@ -676,6 +691,18 @@ function renderCpaMap() {
     renderCpaStudio();
     showToast(checkbox.checked ? "章节已归档" : "章节已重新打开");
   }));
+  document.querySelector("#open-cpa-tutor-chapter").addEventListener("click", () => {
+    state.cpaView = "tutor";
+    renderCpaStudio();
+  });
+  document.querySelector("#open-cpa-chapter-drill").addEventListener("click", () => {
+    if (!selectedQuestions.length) return;
+    const subjectQuestions = cpaQuestionBank.filter((question) => question.subjectId === subject.id);
+    state.cpaQuestionIndex = subjectQuestions.findIndex((question) => question.id === selectedQuestions[0].id);
+    state.cpaAnswered = null;
+    state.cpaView = "drill";
+    renderCpaStudio();
+  });
 }
 
 function renderCpaDrill() {
@@ -703,6 +730,7 @@ function renderCpaDrill() {
     </div>`;
   document.querySelectorAll("[data-cpa-drill-subject]").forEach((button) => button.addEventListener("click", () => {
     state.activeCpaSubjectId = button.dataset.cpaDrillSubject;
+    state.activeCpaChapterIndex = 0;
     state.cpaQuestionIndex = 0;
     state.cpaAnswered = null;
     renderCpaStudio();
@@ -781,23 +809,25 @@ function buildCpaTutorPrompt(subject, chapter, mode, level, material) {
 
 function renderCpaTutor() {
   const subject = currentCpaSubject();
+  const activeChapter = subject.chapters[state.activeCpaChapterIndex] || subject.chapters[0];
   document.querySelector("#cpa-tutor").innerHTML = `
     <div class="cpa-tutor-layout">
       <section class="cpa-tutor-builder">
         <header><span>AI 辅导提示生成器</span><h3>让 AI 按考点讲，不让它泛泛作答。</h3><p>结构参考 CPA-Skill：零基础四步讲解、真实题型、先答后析与错因诊断。</p></header>
         <div class="cpa-tutor-fields">
           <label>科目<select id="cpa-tutor-subject">${cpaSubjects.map((item) => `<option value="${item.id}" ${item.id === subject.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
-          <label>章节 / 考点<select id="cpa-tutor-chapter">${subject.chapters.map((chapter) => `<option>${escapeHtml(chapter)}</option>`).join("")}</select></label>
+          <label>章节 / 考点<select id="cpa-tutor-chapter">${subject.chapters.map((chapter) => `<option ${chapter === activeChapter ? "selected" : ""}>${escapeHtml(chapter)}</option>`).join("")}</select></label>
           <label>辅导模式<select id="cpa-tutor-mode"><option value="explain">从零讲懂</option><option value="solve">拆解一道题</option><option value="practice">生成同考点练习</option><option value="review">诊断错题</option></select></label>
           <label>能力等级<select id="cpa-tutor-level"><option value="1">1 · 知识理解</option><option value="2">2 · 基本应用</option><option value="3">3 · 综合运用</option></select></label>
         </div>
         <label>粘贴教材、题目或你的作答（可选）<textarea id="cpa-tutor-material" rows="6" placeholder="资料只在当前浏览器中处理；生成提示后复制到你使用的 AI。"></textarea></label>
         <button class="button button-primary" type="button" id="generate-cpa-prompt">生成辅导提示</button>
       </section>
-      <section class="cpa-tutor-output"><span>可复制提示</span><textarea id="cpa-tutor-output" rows="17" readonly>${escapeHtml(buildCpaTutorPrompt(subject, subject.chapters[0], "explain", "1", ""))}</textarea><button class="button button-quiet" type="button" id="copy-cpa-prompt">复制提示</button><p>提示词负责约束讲解流程；具体教材口径仍以你提供的资料和中注协最新公告为准。</p><div class="cpa-source-links"><a href="https://www.cicpa.org.cn/ztzl1/exam/exam_outline/" target="_blank" rel="noreferrer">中注协考试大纲</a><a href="https://github.com/CacinieP/CICPA-Learning" target="_blank" rel="noreferrer">CICPA-Learning</a><a href="https://github.com/yjkj999999/cpa-china-2026" target="_blank" rel="noreferrer">cpa-china-2026</a><a href="https://github.com/lyra81604/CPA-Skill" target="_blank" rel="noreferrer">CPA-Skill</a></div></section>
+      <section class="cpa-tutor-output"><span>可复制提示</span><textarea id="cpa-tutor-output" rows="17" readonly>${escapeHtml(buildCpaTutorPrompt(subject, activeChapter, "explain", "1", ""))}</textarea><button class="button button-quiet" type="button" id="copy-cpa-prompt">复制提示</button><p>提示词负责约束讲解流程；具体教材口径仍以你提供的资料和中注协最新公告为准。</p><div class="cpa-source-links"><a href="https://www.cicpa.org.cn/ztzl1/exam/exam_outline/" target="_blank" rel="noreferrer">中注协考试大纲</a><a href="https://github.com/CacinieP/CICPA-Learning" target="_blank" rel="noreferrer">CICPA-Learning</a><a href="https://github.com/yjkj999999/cpa-china-2026" target="_blank" rel="noreferrer">cpa-china-2026</a><a href="https://github.com/lyra81604/CPA-Skill" target="_blank" rel="noreferrer">CPA-Skill</a></div></section>
     </div>`;
   document.querySelector("#cpa-tutor-subject").addEventListener("change", (event) => {
     state.activeCpaSubjectId = event.target.value;
+    state.activeCpaChapterIndex = 0;
     renderCpaTutor();
   });
   document.querySelector("#generate-cpa-prompt").addEventListener("click", () => {

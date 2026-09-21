@@ -74,6 +74,19 @@ const { chromium } = require("playwright");
   await page.locator('[data-cpa-view="map"]').click();
   if ((await page.locator("[data-cpa-subject]").count()) !== 6) throw new Error("CPA 六科地图不完整");
   if ((await page.locator("[data-cpa-chapter]").count()) !== 30) throw new Error("会计 30 章目录不完整");
+  const cpaSubjectChapterCounts = { auditing: 8, finance: 7, tax: 14, law: 12, strategy: 8 };
+  for (const [subjectId, chapterCount] of Object.entries(cpaSubjectChapterCounts)) {
+    await page.locator(`[data-cpa-subject="${subjectId}"]`).click();
+    await page.waitForFunction(({ id, count }) => document.querySelector(`[data-cpa-subject="${id}"]`)?.classList.contains("is-active") && document.querySelectorAll("[data-cpa-chapter]").length === count, { id: subjectId, count: chapterCount });
+  }
+  await page.locator('[data-cpa-subject="accounting"]').click();
+  await page.locator('[data-cpa-open-chapter="1"]').click();
+  if ((await page.locator("#cpa-chapter-reader h4").innerText()) !== "存货") throw new Error("CPA 后续章节无法打开");
+  if (!(await page.locator('[data-cpa-open-chapter="1"]').locator("xpath=..").getAttribute("class")).includes("is-active")) throw new Error("CPA 当前章节状态未更新");
+  await page.screenshot({ path: path.join(output, "cpa-chapter-map.png"), fullPage: true });
+  await page.getByRole("button", { name: "用 AI 学本章" }).click();
+  if ((await page.locator("#cpa-tutor-chapter").inputValue()) !== "存货") throw new Error("CPA 章节未传递到 AI 辅导");
+  await page.locator('[data-cpa-view="map"]').click();
   await page.locator('[data-cpa-chapter="accounting:0"]').check();
   await page.waitForFunction(() => document.querySelector("#cpa-map")?.textContent.includes("1 / 30"));
   await page.locator('[data-cpa-view="drill"]').click();
