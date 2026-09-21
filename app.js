@@ -2294,7 +2294,11 @@ function setupExports() {
 
 function setupPwa() {
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
+    const register = () => navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).catch(() => {
+      // Online learning remains available when offline support cannot be installed.
+    });
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register, { once: true });
   }
   let installPrompt;
   const button = document.querySelector("#install-app");
@@ -2339,6 +2343,7 @@ async function init() {
   setupExports();
   setupPwa();
   renderAll();
+  document.querySelector("#startup-status")?.remove();
   loadDailyPapers();
 }
 

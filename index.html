@@ -49,6 +49,10 @@
       </aside>
 
       <main id="main" class="main-stage">
+        <div id="startup-status" role="status" style="padding:12px 16px;margin-bottom:16px;background:#edf2ed;border-radius:8px">
+          <span id="startup-message">正在载入学习工作台…</span>
+          <button type="button" id="retry-startup" hidden>重新加载</button>
+        </div>
         <header class="topbar">
           <div>
             <p class="date-line" id="date-line"></p>
@@ -379,7 +383,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260921-11"></script>
-    <script type="module" src="./experience.js?v=20260921-11"></script>
+    <script src="./boot.js?v=20260921-12"></script>
   </body>
 </html>
