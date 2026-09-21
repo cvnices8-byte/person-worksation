@@ -1,4 +1,4 @@
-import { db } from "./db.js?v=20260921-5";
+import { db } from "./db.js?v=20260921-6";
 import {
   codingExercises,
   dailyExpressions,
@@ -13,7 +13,7 @@ import {
   paperCategories,
   shadowingSentences,
   yearlyPhases,
-} from "./data.js?v=20260921-5";
+} from "./data.js?v=20260921-6";
 
 const state = {
   tasks: [],
@@ -33,6 +33,9 @@ const state = {
   quickLessonScore: 0,
   quickLessonAnswered: null,
   activeShadowingIndex: 0,
+  shadowMode: "echo",
+  dictationResult: null,
+  activeCustomSentenceIndex: 0,
   activeExpressionIndex: 0,
   quickLessonFinished: false,
 };
@@ -542,6 +545,10 @@ function englishPracticeState() {
     activities: [],
     paperDrafts: {},
     shadowCompleted: {},
+    customMaterial: "",
+    customSentences: [],
+    customCompleted: {},
+    dictationCompleted: {},
     expressionDrafts: {},
     expressionCompleted: {},
   });
@@ -597,6 +604,58 @@ function speakEnglish(text, rate = 0.88) {
   const voice = window.speechSynthesis.getVoices().find((item) => item.lang.startsWith("en"));
   if (voice) utterance.voice = voice;
   window.speechSynthesis.speak(utterance);
+}
+
+function speakEnglishLoop(text, rate = 0.82, repeats = 3) {
+  if (!("speechSynthesis" in window)) {
+    showToast("当前浏览器不支持语音朗读");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const voice = window.speechSynthesis.getVoices().find((item) => item.lang.startsWith("en"));
+  for (let index = 0; index < repeats; index += 1) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = rate;
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
+function normalizedWords(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9'\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function wordEditDistance(expected, actual) {
+  const source = normalizedWords(expected);
+  const target = normalizedWords(actual);
+  const rows = Array.from({ length: source.length + 1 }, () => Array(target.length + 1).fill(0));
+  for (let index = 0; index <= source.length; index += 1) rows[index][0] = index;
+  for (let index = 0; index <= target.length; index += 1) rows[0][index] = index;
+  for (let row = 1; row <= source.length; row += 1) {
+    for (let column = 1; column <= target.length; column += 1) {
+      const cost = source[row - 1] === target[column - 1] ? 0 : 1;
+      rows[row][column] = Math.min(rows[row - 1][column] + 1, rows[row][column - 1] + 1, rows[row - 1][column - 1] + cost);
+    }
+  }
+  const distance = rows[source.length][target.length];
+  return {
+    distance,
+    accuracy: Math.max(0, Math.round((1 - distance / Math.max(source.length, 1)) * 100)),
+    expectedWords: source.length,
+    actualWords: target.length,
+  };
+}
+
+function splitEnglishSentences(text) {
+  return (text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [])
+    .map((sentence) => sentence.trim().replace(/\s+/g, " "))
+    .filter((sentence) => normalizedWords(sentence).length >= 3)
+    .slice(0, 50);
 }
 
 function renderEnglishStats() {
@@ -677,7 +736,7 @@ function renderEnglishToday() {
     { type: "quick-lesson", minutes: 10, title: "语法与表达短课", detail: "英文题干、中文翻译与语法解释", done: activities.some((item) => item.type === "quick-lesson") },
     { type: "vocabulary", minutes: 10, title: "语境词汇", detail: `主动回忆 10 个词 · 今日 ${vocabularyCount} 个`, done: vocabularyCount >= 10 },
     { type: "expressions", minutes: 10, title: "日常用语", detail: "听一句、替换结构、说自己的版本", done: activities.some((item) => item.type === "daily-expression") },
-    { type: "shadowing", minutes: 10, title: "听说跟读", detail: "听两遍、跟读三遍、录下最后一遍", done: activities.some((item) => item.type === "shadowing") },
+    { type: "shadowing", minutes: 10, title: "回声与听写", detail: "循环跟读、精听校对或练习自己的材料", done: activities.some((item) => ["shadowing", "dictation", "custom-material"].includes(item.type)) },
     { type: "paper", minutes: 20, title: "论文英语", detail: "拆摘要结构，再用自己的话改写", done: activities.some((item) => item.type === "paper") },
   ];
   document.querySelector("#english-today").innerHTML = `
@@ -835,40 +894,170 @@ function renderEnglishShadowing() {
   const practice = englishPracticeState();
   const item = shadowingSentences[state.activeShadowingIndex];
   const completedCount = Object.keys(practice.shadowCompleted || {}).length;
-  document.querySelector("#english-shadowing").innerHTML = `
-    <div class="shadow-layout">
-      <aside class="shadow-sequence">
-        <strong>跟读句库</strong>
-        <span>${completedCount} / ${shadowingSentences.length} 句完成</span>
-        ${shadowingSentences.map((sentence, index) => `<button type="button" class="${index === state.activeShadowingIndex ? "is-active" : ""} ${practice.shadowCompleted?.[sentence.id] ? "is-done" : ""}" data-shadow-index="${index}"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(sentence.text)}</button>`).join("")}
-      </aside>
-      <section class="shadow-sheet">
-        <span>LISTEN → SHADOW → RECORD</span>
-        <blockquote>${escapeHtml(item.text)}</blockquote>
-        <p>${escapeHtml(item.translation)}</p>
-        <div class="pronunciation-note"><strong>朗读重点</strong><span>${escapeHtml(item.focus)}</span></div>
-        <div class="shadow-controls"><label>语速<select id="shadow-rate"><option value="0.72">慢速 0.72×</option><option value="0.88" selected>练习 0.88×</option><option value="1">原速 1.0×</option></select></label><button class="button button-primary" id="play-shadow" type="button">播放句子</button><button class="button button-quiet" id="complete-shadow" type="button">完成本轮跟读</button></div>
-        <small>建议使用系统录音机录下最后一遍，自听时只检查重音、停顿和尾音。本站不会调用麦克风。</small>
-      </section>
-    </div>`;
-  document.querySelectorAll("[data-shadow-index]").forEach((button) => {
+  const totalMinutes = (practice.activities || []).reduce((sum, activity) => sum + Number(activity.minutes || 0), 0);
+  const modeLabels = { echo: "回声跟读", dictation: "精听听写", custom: "我的材料" };
+  const commonHeader = `
+    <header class="shadow-lab-head">
+      <nav aria-label="听说训练模式">${Object.entries(modeLabels).map(([id, label]) => `<button type="button" class="${state.shadowMode === id ? "is-active" : ""}" data-shadow-mode="${id}">${label}</button>`).join("")}</nav>
+      <div><strong>${(totalMinutes / 60).toFixed(1)}h</strong><span>累计英语训练 / 1000h</span></div>
+    </header>`;
+
+  const builtInSequence = (hideText = false) => `
+    <aside class="shadow-sequence">
+      <strong>${state.shadowMode === "dictation" ? "精听句库" : "跟读句库"}</strong>
+      <span>${completedCount} / ${shadowingSentences.length} 句完成</span>
+      ${shadowingSentences.map((sentence, index) => `<button type="button" class="${index === state.activeShadowingIndex ? "is-active" : ""} ${practice.shadowCompleted?.[sentence.id] ? "is-done" : ""}" data-shadow-index="${index}"><span>${String(index + 1).padStart(2, "0")}</span>${hideText ? `${normalizedWords(sentence.text).length} words · 点击练习` : escapeHtml(sentence.text)}</button>`).join("")}
+    </aside>`;
+
+  let content;
+  if (state.shadowMode === "dictation") {
+    const result = state.dictationResult;
+    content = `
+      <div class="shadow-layout">
+        ${builtInSequence(true)}
+        <section class="dictation-sheet">
+          <span>LISTEN → TYPE → CHECK</span>
+          <h3>只听句子，不看原文。</h3>
+          <p>先听完整意思，再按意群写下；标点和大小写不计分。</p>
+          <div class="dictation-controls"><label>语速<select id="dictation-rate"><option value="0.72">慢速 0.72×</option><option value="0.88" selected>练习 0.88×</option><option value="1">原速 1.0×</option></select></label><button class="button button-primary" id="play-dictation" type="button">播放听写</button></div>
+          <label class="dictation-input">写下你听到的内容<textarea id="dictation-answer" rows="4" spellcheck="false" placeholder="Type the sentence you hear…">${escapeHtml(result?.input || "")}</textarea></label>
+          <button class="button button-quiet" id="check-dictation" type="button">检查听写</button>
+          ${result ? `<div class="dictation-result"><strong>${result.accuracy}<small>%</small></strong><div><b>${result.accuracy >= 90 ? "听写准确" : result.accuracy >= 70 ? "接近了，再听一次" : "先对照原文找漏词"}</b><p>${escapeHtml(item.text)}</p><span>${escapeHtml(item.translation)}</span><small>编辑距离 ${result.distance} · 目标 ${result.expectedWords} 词 · 写下 ${result.actualWords} 词</small></div></div><div class="dictation-result-actions"><button class="text-button" id="retry-dictation" type="button">清空重练</button><button class="button button-primary" id="record-dictation" type="button">记录本轮听写</button></div>` : ""}
+        </section>
+      </div>`;
+  } else if (state.shadowMode === "custom") {
+    const sentences = practice.customSentences || [];
+    const customIndex = Math.min(state.activeCustomSentenceIndex, Math.max(sentences.length - 1, 0));
+    const customSentence = sentences[customIndex];
+    content = `
+      <div class="shadow-layout custom-material-layout">
+        <aside class="shadow-sequence custom-sequence">
+          <strong>我的句子</strong>
+          <span>${sentences.length ? `${sentences.length} 句本地材料` : "尚未导入材料"}</span>
+          ${sentences.map((sentence, index) => `<button type="button" class="${index === customIndex ? "is-active" : ""} ${practice.customCompleted?.[index] ? "is-done" : ""}" data-custom-index="${index}"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(sentence)}</button>`).join("")}
+        </aside>
+        <section class="custom-material-sheet">
+          <div class="custom-import">
+            <span>导入真实材料</span>
+            <p>粘贴论文摘要、视频字幕或日常文章。系统只在本机切句，最多保留 50 句。</p>
+            <textarea id="custom-material-input" rows="4" placeholder="Paste English text here…">${escapeHtml(practice.customMaterial || "")}</textarea>
+            <button class="button button-quiet" id="import-custom-material" type="button">切分并保存材料</button>
+          </div>
+          ${customSentence ? `<div class="custom-practice"><span>句子 ${customIndex + 1} / ${sentences.length}</span><blockquote>${escapeHtml(customSentence)}</blockquote><div class="shadow-controls"><button class="button button-primary" id="play-custom-sentence" type="button">播放一次</button><button class="button button-quiet" id="loop-custom-sentence" type="button">回声循环 ×3</button><button class="button button-quiet" id="complete-custom-sentence" type="button">完成这句</button></div></div>` : `<div class="custom-empty"><strong>从你真正想读懂的内容开始。</strong><span>建议一次导入 5–15 句，逐句听、读、复述。</span></div>`}
+        </section>
+      </div>`;
+  } else {
+    content = `
+      <div class="shadow-layout">
+        ${builtInSequence(false)}
+        <section class="shadow-sheet">
+          <span>LISTEN → ECHO ×3 → RECORD</span>
+          <blockquote>${escapeHtml(item.text)}</blockquote>
+          <p>${escapeHtml(item.translation)}</p>
+          <div class="pronunciation-note"><strong>朗读重点</strong><span>${escapeHtml(item.focus)}</span></div>
+          <div class="shadow-controls"><label>语速<select id="shadow-rate"><option value="0.72">慢速 0.72×</option><option value="0.88" selected>练习 0.88×</option><option value="1">原速 1.0×</option></select></label><button class="button button-primary" id="play-shadow" type="button">播放一次</button><button class="button button-quiet" id="loop-shadow" type="button">回声循环 ×3</button><button class="button button-quiet" id="complete-shadow" type="button">完成本轮跟读</button></div>
+          <small>听一遍掌握意群，连续跟读三遍，最后用系统录音机录下自己的版本。本站不会调用麦克风。</small>
+        </section>
+      </div>`;
+  }
+
+  document.querySelector("#english-shadowing").innerHTML = `${commonHeader}${content}`;
+  document.querySelectorAll("[data-shadow-mode]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.activeShadowingIndex = Number(button.dataset.shadowIndex);
+      state.shadowMode = button.dataset.shadowMode;
+      state.dictationResult = null;
       renderEnglishShadowing();
     });
   });
-  document.querySelector("#play-shadow").addEventListener("click", () => speakEnglish(item.text, Number(document.querySelector("#shadow-rate").value)));
-  document.querySelector("#complete-shadow").addEventListener("click", async () => {
-    const current = englishPracticeState();
-    await saveSetting({
-      ...current,
-      shadowCompleted: { ...(current.shadowCompleted || {}), [item.id]: new Date().toISOString() },
-      activities: [...(current.activities || []), newEnglishActivity("shadowing", 10, 12, `跟读：${item.text}`)],
+  document.querySelectorAll("[data-shadow-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeShadowingIndex = Number(button.dataset.shadowIndex);
+      state.dictationResult = null;
+      renderEnglishShadowing();
     });
-    state.activeShadowingIndex = (state.activeShadowingIndex + 1) % shadowingSentences.length;
-    renderEnglishStudio();
-    showToast("跟读已记录；请回听自己的最后一遍");
   });
+
+  if (state.shadowMode === "echo") {
+    document.querySelector("#play-shadow").addEventListener("click", () => speakEnglish(item.text, Number(document.querySelector("#shadow-rate").value)));
+    document.querySelector("#loop-shadow").addEventListener("click", () => speakEnglishLoop(item.text, Number(document.querySelector("#shadow-rate").value), 3));
+    document.querySelector("#complete-shadow").addEventListener("click", async () => {
+      const current = englishPracticeState();
+      await saveSetting({
+        ...current,
+        shadowCompleted: { ...(current.shadowCompleted || {}), [item.id]: new Date().toISOString() },
+        activities: [...(current.activities || []), newEnglishActivity("shadowing", 10, 12, `回声跟读：${item.text}`)],
+      });
+      state.activeShadowingIndex = (state.activeShadowingIndex + 1) % shadowingSentences.length;
+      renderEnglishStudio();
+      showToast("跟读已记录；请回听自己的最后一遍");
+    });
+  }
+
+  if (state.shadowMode === "dictation") {
+    document.querySelector("#play-dictation").addEventListener("click", () => speakEnglish(item.text, Number(document.querySelector("#dictation-rate").value)));
+    document.querySelector("#check-dictation").addEventListener("click", () => {
+      const input = document.querySelector("#dictation-answer").value.trim();
+      if (!input) {
+        showToast("先写下你听到的内容");
+        return;
+      }
+      state.dictationResult = { ...wordEditDistance(item.text, input), input };
+      renderEnglishShadowing();
+    });
+    document.querySelector("#retry-dictation")?.addEventListener("click", () => {
+      state.dictationResult = null;
+      renderEnglishShadowing();
+    });
+    document.querySelector("#record-dictation")?.addEventListener("click", async () => {
+      const current = englishPracticeState();
+      await saveSetting({
+        ...current,
+        dictationCompleted: { ...(current.dictationCompleted || {}), [item.id]: { accuracy: state.dictationResult.accuracy, completedAt: new Date().toISOString() } },
+        activities: [...(current.activities || []), newEnglishActivity("dictation", 10, Math.max(5, Math.round(state.dictationResult.accuracy / 5)), `精听听写：${state.dictationResult.accuracy}%`)],
+      });
+      state.dictationResult = null;
+      state.activeShadowingIndex = (state.activeShadowingIndex + 1) % shadowingSentences.length;
+      renderEnglishStudio();
+      showToast("听写成绩已记录");
+    });
+  }
+
+  if (state.shadowMode === "custom") {
+    document.querySelectorAll("[data-custom-index]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.activeCustomSentenceIndex = Number(button.dataset.customIndex);
+        renderEnglishShadowing();
+      });
+    });
+    document.querySelector("#import-custom-material").addEventListener("click", async () => {
+      const material = document.querySelector("#custom-material-input").value.trim();
+      const sentences = splitEnglishSentences(material);
+      if (!sentences.length) {
+        showToast("至少粘贴一个包含三个英文词的完整句子");
+        return;
+      }
+      const current = englishPracticeState();
+      await saveSetting({ ...current, customMaterial: material, customSentences: sentences, customCompleted: {} });
+      state.activeCustomSentenceIndex = 0;
+      renderEnglishShadowing();
+      showToast(`已切分并保存 ${sentences.length} 个句子`);
+    });
+    const sentences = englishPracticeState().customSentences || [];
+    const customSentence = sentences[state.activeCustomSentenceIndex];
+    document.querySelector("#play-custom-sentence")?.addEventListener("click", () => speakEnglish(customSentence, 0.86));
+    document.querySelector("#loop-custom-sentence")?.addEventListener("click", () => speakEnglishLoop(customSentence, 0.82, 3));
+    document.querySelector("#complete-custom-sentence")?.addEventListener("click", async () => {
+      const current = englishPracticeState();
+      await saveSetting({
+        ...current,
+        customCompleted: { ...(current.customCompleted || {}), [state.activeCustomSentenceIndex]: new Date().toISOString() },
+        activities: [...(current.activities || []), newEnglishActivity("custom-material", 10, 12, `自选材料：${customSentence}`)],
+      });
+      state.activeCustomSentenceIndex = Math.min(state.activeCustomSentenceIndex + 1, sentences.length - 1);
+      renderEnglishStudio();
+      showToast("自选材料练习已记录");
+    });
+  }
 }
 
 function currentPaperForEnglish() {

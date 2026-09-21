@@ -509,6 +509,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .expression-actions { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 14px; }
 .expression-actions > span { margin-left: auto; color: var(--muted); font-size: 10px; }
 
+.shadow-lab-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 22px; border-bottom: 1px solid #d6e3dd; background: #f8fbf9; }
+.shadow-lab-head nav { display: flex; gap: 20px; }
+.shadow-lab-head nav button { padding: 8px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 11px; font-weight: 650; cursor: pointer; }
+.shadow-lab-head nav button.is-active { border-color: #16806a; color: #125f51; }
+.shadow-lab-head > div { display: flex; align-items: baseline; gap: 7px; }
+.shadow-lab-head > div strong { color: #125f51; font-size: 20px; }
+.shadow-lab-head > div span { color: var(--muted); font-size: 9px; }
 .shadow-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); min-height: 540px; }
 .shadow-sequence { border-right: 1px solid #d6e3dd; background: #f2f7f4; }
 .shadow-sequence > strong, .shadow-sequence > span { display: block; padding-inline: 22px; }
@@ -527,6 +534,34 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .shadow-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
 .shadow-controls label { min-width: 130px; }
 .shadow-sheet > small { max-width: 700px; margin-top: 17px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.dictation-sheet { display: grid; align-content: start; padding: 38px clamp(28px, 5vw, 60px); }
+.dictation-sheet > span { color: #16806a; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; }
+.dictation-sheet h3 { margin: 22px 0 7px; font-family: "Songti SC", "STSong", Georgia, serif; font-size: 32px; }
+.dictation-sheet > p { margin: 0 0 24px; color: var(--muted); font-size: 12px; }
+.dictation-controls { display: flex; align-items: end; gap: 10px; margin-bottom: 17px; }
+.dictation-controls label { min-width: 150px; }
+.dictation-input { margin-bottom: 12px; }
+.dictation-input textarea { margin-top: 4px; font-family: Georgia, "Times New Roman", serif; font-size: 16px; line-height: 1.7; }
+.dictation-sheet > #check-dictation { justify-self: start; }
+.dictation-result { display: grid; grid-template-columns: 110px 1fr; gap: 20px; margin-top: 22px; padding: 20px; border-left: 4px solid #16806a; background: #edf7f2; }
+.dictation-result > strong { align-self: start; color: #125f51; font-size: 43px; line-height: 1; }
+.dictation-result > strong small { font-size: 15px; }
+.dictation-result > div { display: grid; gap: 7px; }
+.dictation-result b { color: #125f51; font-size: 12px; }
+.dictation-result p { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 16px; line-height: 1.5; }
+.dictation-result span, .dictation-result div small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.dictation-result-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.custom-material-sheet { display: grid; align-content: start; padding: 30px clamp(24px, 4vw, 48px); }
+.custom-import { display: grid; gap: 9px; padding-bottom: 24px; border-bottom: 1px solid #d6e3dd; }
+.custom-import > span { color: #16806a; font-size: 11px; font-weight: 700; }
+.custom-import p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.custom-import textarea { font-family: Georgia, "Times New Roman", serif; font-size: 13px; line-height: 1.65; }
+.custom-import .button { justify-self: start; }
+.custom-practice { padding-top: 28px; }
+.custom-practice > span { color: #16806a; font-size: 10px; }
+.custom-practice blockquote { margin: 18px 0 28px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(25px, 3.5vw, 40px); line-height: 1.32; }
+.custom-empty { display: grid; gap: 7px; padding: 40px 0; color: var(--muted); }
+.custom-empty strong { color: var(--ink); font-family: "Songti SC", "STSong", Georgia, serif; font-size: 24px; }
 
 .paper-english-layout { display: grid; grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr); min-height: 580px; }
 .paper-source { padding: 32px; border-right: 1px solid #324957; background: var(--ink); color: white; }
@@ -717,6 +752,15 @@ dialog::backdrop { background: rgba(21, 42, 56, 0.48); backdrop-filter: blur(4px
   .shadow-sheet { padding: 28px 18px; }
   .shadow-sheet blockquote { font-size: 29px; }
   .shadow-controls .button, .shadow-controls label { width: 100%; }
+  .shadow-lab-head { align-items: stretch; flex-direction: column; }
+  .shadow-lab-head nav { justify-content: space-between; overflow-x: auto; }
+  .shadow-lab-head nav button { flex: 0 0 auto; }
+  .dictation-sheet, .custom-material-sheet { padding: 28px 18px; }
+  .dictation-controls { align-items: stretch; flex-direction: column; }
+  .dictation-controls label, .dictation-controls .button { width: 100%; }
+  .dictation-result { grid-template-columns: 1fr; }
+  .dictation-result-actions { align-items: stretch; flex-direction: column; }
+  .custom-import .button { width: 100%; }
   .paper-source, .paper-english-form { padding: 24px 18px; }
   .paper-structure-grid { grid-template-columns: 1fr; }
   .paper-english-actions .button { flex: 1; }
