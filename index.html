@@ -11,6 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=20260921-10" />
+    <link rel="stylesheet" href="./experience.css?v=20260921-11" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -119,6 +120,17 @@
         </section>
 
         <section class="view" id="view-modules">
+          <nav class="workspace-switcher" aria-label="学习工作台">
+            <div class="workspace-label">学习空间<span>选择今天的主线</span></div>
+            <div class="workspace-options">
+              <button type="button" data-workspace="all" aria-pressed="true">全部概览</button>
+              <button type="button" data-workspace="data" aria-pressed="false">数据与 AI</button>
+              <button type="button" data-workspace="cpa" aria-pressed="false">CPA</button>
+              <button type="button" data-workspace="civil" aria-pressed="false">考公考编</button>
+              <button type="button" data-workspace="english" aria-pressed="false">英语</button>
+            </div>
+            <p id="workspace-status" role="status">浏览学习地图，或选择一个工作台开始专注。</p>
+          </nav>
           <div class="intro-copy">
             <p>能力结构</p>
             <h2>所有学习都要落到一次作答、一次表达或一个作品。</h2>
@@ -367,6 +379,7 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260921-10"></script>
+    <script type="module" src="./app.js?v=20260921-11"></script>
+    <script type="module" src="./experience.js?v=20260921-11"></script>
   </body>
 </html>

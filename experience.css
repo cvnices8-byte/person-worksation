@@ -1,0 +1,69 @@
+/* Shared reading rhythm and motion for the existing learning workspaces. */
+:root { --blue: #286c60; --paper: #f3f5f2; --shadow: 0 12px 32px rgba(29, 55, 46, .055); }
+body { font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+.app-shell, .main-stage { min-height: 100dvh; }
+.main-stage { max-width: 1600px; padding-inline: clamp(20px, 3.3vw, 56px); }
+h1, h2, h3, h4 { text-wrap: balance; }
+p { text-wrap: pretty; }
+.brand-mark, .nav-index { border-radius: 10px; }
+.rail { background: #edf1ec; }
+.nav-item { min-height: 48px; }
+.nav-item.is-active { background: #244a42; box-shadow: 0 4px 12px #244a4215; }
+.button { min-height: 40px; border-radius: 6px; }
+.button-primary:hover { background: #20574d; }
+.button-quiet { color: var(--ink); }
+button, a, input, select, textarea { transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+button:active:not(:disabled), .button:active { transform: translateY(1px); }
+button:disabled { cursor: not-allowed; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #286c6080; outline-offset: 3px; }
+.topbar { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.topbar h1 { font-size: clamp(30px, 3.4vw, 44px); }
+.panel { border-radius: 12px; box-shadow: var(--shadow); }
+.workspace-switcher { position: sticky; top: 12px; z-index: 10; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px 24px; padding: 16px 20px; margin-bottom: 28px; border: 1px solid #d3ddd5; border-radius: 12px; background: rgba(250, 252, 249, .96); backdrop-filter: blur(16px); box-shadow: 0 8px 24px #2342380a; }
+.workspace-label { font-size: 14px; font-weight: 650; }
+.workspace-label span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted); }
+.workspace-options { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+.workspace-options button { min-height: 42px; padding: 10px 15px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #53645c; font-size: 13px; cursor: pointer; }
+.workspace-options button:hover { background: #e8eee8; }
+.workspace-options button[aria-pressed="true"] { background: #244a42; color: white; }
+#workspace-status { grid-column: 1 / -1; margin: 0; padding-top: 10px; border-top: 1px solid #e0e6df; color: #66746c; font-size: 12px; }
+#view-modules { scroll-margin-top: 20px; }
+#view-modules[data-current-workspace]:not([data-current-workspace="all"]) > :is(.intro-copy, .year-roadmap, #module-board) { display: none; }
+:is(.learning-studio, .cpa-studio, .civil-studio, .english-studio) { border-radius: 12px; box-shadow: var(--shadow); margin-top: 24px; }
+:is(.studio-head, .cpa-studio-head, .civil-studio-head, .english-studio-head) { border-radius: 11px 11px 0 0; }
+.studio-head { background: #edf2ed; color: #244a42; }
+.studio-head :is(p, span) { color: #5b7268; }
+:is(.studio-tabs, .cpa-tabs, .civil-tabs, .english-tabs) button { min-height: 44px; font-size: 13px; }
+.studio-tabs button { color: #536b60; }
+.studio-tabs button.is-active { color: #244a42; border-color: #244a42; }
+:is(.learning-studio, .cpa-studio, .civil-studio, .english-studio) :is(p, small, label, li) { font-size: max(12px, .78rem); line-height: 1.65; }
+:is(.cpa-chapter, .civil-topic, .civil-module-rail, .cpa-subject-index, .exercise-index) strong { font-size: 13px; }
+:is(.cpa-chapter, .civil-topic) > button { min-height: 48px; }
+:is(.cpa-chapter-reader, .civil-topic-reader) { scroll-margin-top: 160px; }
+:is(.cpa-chapter-levels, .civil-topic-levels) strong { font-size: 13px; }
+:is(.cpa-chapter-reader, .civil-topic-reader) > aside span { font-size: 12px; }
+:is(.civil-options, .cpa-options) button { min-height: 46px; font-size: 13px; }
+.civil-perspective-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.civil-perspective-strip summary { font-size: 12px; }
+.civil-perspective-strip details p { position: static; width: auto; margin-top: 10px; box-shadow: none; border: 0; padding: 0; background: transparent; }
+.civil-perspective-strip > div { font-size: 12px; }
+.civil-perspective-strip > a { font-size: 12px; }
+textarea { line-height: 1.7; }
+.view.is-active, :is(.studio-panel, .cpa-panel, .civil-panel, .english-panel).is-active { animation: panel-enter 220ms ease-out; }
+dialog[open] { animation: panel-enter 180ms ease-out; border-radius: 12px; }
+@keyframes panel-enter { from { opacity: .4; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 640px) {
+  .main-stage { padding-inline: 16px; padding-bottom: 100px; }
+  .workspace-switcher { top: 8px; padding: 12px; gap: 10px; grid-template-columns: 1fr; }
+  .workspace-label span { display: inline; margin-left: 10px; }
+  .workspace-options { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
+  .workspace-options button { flex-shrink: 0; padding-inline: 12px; }
+  #workspace-status { font-size: 11px; }
+  .civil-perspective-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .topbar-actions { flex-wrap: wrap; }
+  :is(.cpa-chapter-reader, .civil-topic-reader) { scroll-margin-top: 190px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

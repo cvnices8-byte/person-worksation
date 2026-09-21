@@ -2086,13 +2086,18 @@ function renderAll() {
 
 function setupNavigation() {
   function activate(viewName) {
+    if (!viewTitles[viewName]) return;
     document.querySelectorAll(".view").forEach((view) => view.classList.remove("is-active"));
-    document.querySelectorAll(".nav-item").forEach((item) => item.classList.remove("is-active"));
+    document.querySelectorAll(".nav-item").forEach((item) => {
+      item.classList.remove("is-active");
+      if (item.dataset.view === viewName) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
     document.querySelector(`#view-${viewName}`).classList.add("is-active");
     document.querySelector(`.nav-item[data-view="${viewName}"]`).classList.add("is-active");
     document.querySelector("#view-title").textContent = viewTitles[viewName];
-    history.replaceState(null, "", `#${viewName}`);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (location.hash !== `#${viewName}`) history.pushState(null, "", `#${viewName}`);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   document.querySelectorAll("[data-view]").forEach((button) =>
@@ -2103,7 +2108,11 @@ function setupNavigation() {
   );
 
   const initial = location.hash.slice(1);
-  if (viewTitles[initial]) activate(initial);
+  activate(viewTitles[initial] ? initial : "today");
+  window.addEventListener("popstate", () => activate(viewTitles[location.hash.slice(1)] ? location.hash.slice(1) : "today"));
+  window.addEventListener("hashchange", () => {
+    if (viewTitles[location.hash.slice(1)]) activate(location.hash.slice(1));
+  });
 }
 
 function setupDialogs() {
