@@ -16,6 +16,7 @@
 - 英语跟读句库与论文摘要结构化改写，草稿和进度仅保存在本机
 - 参考“人人都能用英语 / Enjoy”的回声跟读、精听听写即时校对和自选材料自动切句
 - CPA 学习工作台：未来 52 周路线、六科章节地图、2026 题型分值参考、示范题库、错因分类与 AI 辅导提示
+- 考公考编训练台：一年路线、行测五模块、限时示范题、七类解题视角、申论草稿与批改提示、错题诊断
 - 数据科学与 AI、CPA、考公、英语、求职维护、复盘的周配额
 - 今日任务与完成状态
 - 学习时长记录
@@ -36,6 +37,15 @@ CPA 工作台的六科章节、题型口径与辅导流程参考以下公开项�
 - [CPA-Skill](https://github.com/lyra81604/CPA-Skill)：零基础讲解、先答后析、错因诊断与 AI 辅导流程参考
 
 考试日期、法规截止口径和题型如有变化，以中国注册会计师协会正式公告为准。
+
+## 考公考编内容来源
+
+考公考编工作台的模块结构、训练方法和申论批改流程参考以下公开项目；当前仅接入基础交互、原创示范题和资料入口，后续教材、题库与知识库可按现有数据结构继续扩充：
+
+- [kaogong](https://github.com/brunomiyeo/kaogong)：花生十三全模块知识库入口
+- [huasheng13-skill](https://github.com/WangJunqing-coder/huasheng13-skill)：行测六模块方法、题型与复盘框架
+- [huasheng-shisan-perspective](https://github.com/ksbsjsj/huasheng-shisan-perspective)：七个心智模型与解题视角蒸馏
+- [Shenlun.skill](https://github.com/coffe-d/Shenlun.skill/tree/master)：申论识题、采分点和分项批改流程
 
 ## 本地运行
 

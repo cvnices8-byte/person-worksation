@@ -1,6 +1,11 @@
-import { db } from "./db.js?v=20260921-8";
+import { db } from "./db.js?v=20260921-9";
 import {
   codingExercises,
+  civilModules,
+  civilKnowledgeSources,
+  civilMentalModels,
+  civilQuestionBank,
+  civilYearPlan,
   cpaQuestionBank,
   cpaSubjects,
   cpaYearPlan,
@@ -15,8 +20,9 @@ import {
   modules,
   paperCategories,
   shadowingSentences,
+  shenlunTypes,
   yearlyPhases,
-} from "./data.js?v=20260921-8";
+} from "./data.js?v=20260921-9";
 
 const state = {
   tasks: [],
@@ -34,6 +40,12 @@ const state = {
   activeCpaChapterIndex: 0,
   cpaQuestionIndex: 0,
   cpaAnswered: null,
+  civilView: "today",
+  activeCivilModuleId: civilModules[0].id,
+  civilQuestionIndex: 0,
+  civilAnswered: null,
+  civilQuestionStartedAt: Date.now(),
+  activeShenlunTypeId: shenlunTypes[0].id,
   englishView: "today",
   vocabularyRevealed: false,
   activeVocabularyId: englishVocabulary[0].id,
@@ -339,7 +351,7 @@ function renderModules() {
       const completeCount = path.filter((unit) => completed[unit.id]).length;
       const progress = path.length ? Math.round((completeCount / path.length) * 100) : 0;
       return `
-        <article class="module-card ${["data-ai", "cpa", "english"].includes(module.id) ? "is-priority" : ""}">
+        <article class="module-card ${["data-ai", "cpa", "civil", "english"].includes(module.id) ? "is-priority" : ""}">
           <div class="module-card-head">
             <span class="module-code" style="background:${module.color}">${module.short}</span>
             <span>${module.targetHours}h / 周</span>
@@ -854,6 +866,262 @@ function renderCpaStudio() {
     };
   });
   syncCpaPanels();
+}
+
+function civilPracticeState() {
+  return getSetting("civil-practice", {
+    id: "civil-practice",
+    activePhase: civilYearPlan[0].id,
+    completedTopics: {},
+    activities: [],
+    attempts: [],
+    errors: [],
+    shenlunDrafts: {},
+  });
+}
+
+function currentCivilModule() {
+  return civilModules.find((item) => item.id === state.activeCivilModuleId) || civilModules[0];
+}
+
+function syncCivilPanels() {
+  document.querySelectorAll("[data-civil-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.civilView === state.civilView));
+  document.querySelectorAll("[data-civil-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.civilPanel === state.civilView));
+}
+
+function renderCivilSummary() {
+  const practice = civilPracticeState();
+  const totalTopics = civilModules.reduce((sum, module) => sum + module.topics.length, 0);
+  const completed = Object.values(practice.completedTopics || {}).filter(Boolean).length;
+  const attempts = practice.attempts || [];
+  const accuracy = attempts.length ? Math.round((attempts.filter((attempt) => attempt.correct).length / attempts.length) * 100) : 0;
+  const shenlunCount = (practice.activities || []).filter((item) => item.type === "shenlun-complete").length;
+  document.querySelector("#civil-summary").innerHTML = `
+    <div><strong>${completed}<small>/${totalTopics}</small></strong><span>专项完成</span></div>
+    <div><strong>${accuracy}<small>%</small></strong><span>行测正确率</span></div>
+    <div><strong>${shenlunCount}</strong><span>申论作答</span></div>`;
+}
+
+function renderCivilToday() {
+  const practice = civilPracticeState();
+  const phase = civilYearPlan.find((item) => item.id === practice.activePhase) || civilYearPlan[0];
+  const activities = (practice.activities || []).filter((item) => item.date === todayKey());
+  const minutes = activities.reduce((sum, item) => sum + Number(item.minutes || 0), 0);
+  const blocks = [
+    { type: "data", minutes: 25, title: "资料分析限时组", detail: "先看题再定位，写出式子后再选速算方法", view: "aptitude", moduleId: "data-analysis" },
+    { type: "aptitude", minutes: 20, title: "言语 / 判断轮换", detail: "记录题型、正确率和单题耗时，不只记录答案", view: "aptitude", moduleId: "reasoning" },
+    { type: "shenlun", minutes: 20, title: "申论小题一则", detail: "审题、找点、加工、分条，保留完整草稿", view: "shenlun", moduleId: "shenlun" },
+    { type: "review", minutes: 10, title: "错题复盘", detail: "为每道错题写下识别信号和下次动作", view: "errors", moduleId: null },
+  ];
+  document.querySelector("#civil-today").innerHTML = `
+    <div class="civil-today-layout">
+      <aside class="civil-cycle">
+        <header><span>一年备考阶段</span><strong>${escapeHtml(phase.name)}</strong><p>${escapeHtml(phase.target)}</p></header>
+        ${civilYearPlan.map((item) => `<button type="button" class="${item.id === phase.id ? "is-active" : ""}" data-civil-phase="${item.id}"><span>${escapeHtml(item.weeks)}</span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.focus)}</small></button>`).join("")}
+      </aside>
+      <section class="civil-daily-card">
+        <header><div><span>今日建议训练</span><h3>${minutes}<small> / 75 分钟</small></h3></div><p>目前不进入招聘主攻模式，按长线节奏积累正确率、速度和表达。</p></header>
+        <div class="civil-daily-blocks">
+          ${blocks.map((block, index) => {
+            const done = activities.some((item) => item.type === block.type);
+            return `<article class="${done ? "is-done" : ""}"><span>${done ? "✓" : String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(block.title)}</strong><small>${escapeHtml(block.detail)}</small></div><button type="button" data-civil-start="${block.view}" data-civil-module="${block.moduleId || ""}">去训练</button><button type="button" data-civil-complete="${block.type}" data-minutes="${block.minutes}" ${done ? "disabled" : ""}>${done ? "已记录" : `完成 ${block.minutes}m`}</button></article>`;
+          }).join("")}
+        </div>
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-civil-phase]").forEach((button) => button.addEventListener("click", async () => {
+    await saveSetting({ ...civilPracticeState(), activePhase: button.dataset.civilPhase });
+    renderCivilStudio();
+  }));
+  document.querySelectorAll("[data-civil-start]").forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.civilModule) state.activeCivilModuleId = button.dataset.civilModule;
+    state.civilView = button.dataset.civilStart;
+    state.civilAnswered = null;
+    state.civilQuestionStartedAt = Date.now();
+    renderCivilStudio();
+  }));
+  document.querySelectorAll("[data-civil-complete]").forEach((button) => button.addEventListener("click", async () => {
+    const practiceNow = civilPracticeState();
+    const activity = { id: crypto.randomUUID(), type: button.dataset.civilComplete, minutes: Number(button.dataset.minutes), date: todayKey(), createdAt: new Date().toISOString() };
+    await saveSetting({ ...practiceNow, activities: [...(practiceNow.activities || []), activity] });
+    renderCivilStudio();
+    showToast("训练时长已计入今日进度");
+  }));
+}
+
+function renderCivilAptitude() {
+  const practice = civilPracticeState();
+  let module = currentCivilModule();
+  if (module.id === "shenlun") {
+    state.activeCivilModuleId = civilModules[0].id;
+    module = civilModules[0];
+  }
+  const questions = civilQuestionBank.filter((question) => question.moduleId === module.id);
+  const question = questions[state.civilQuestionIndex % Math.max(questions.length, 1)];
+  const answered = question && state.civilAnswered?.questionId === question.id ? state.civilAnswered.answer : null;
+  const completed = module.topics.filter((_, index) => practice.completedTopics?.[`${module.id}:${index}`]).length;
+  document.querySelector("#civil-aptitude").innerHTML = `
+    <div class="civil-aptitude-layout">
+      <aside class="civil-module-rail">
+        <header><strong>行测五模块</strong><span>优先记录正确率和耗时，再判断要不要学新方法。</span></header>
+        ${civilModules.filter((item) => item.id !== "shenlun").map((item) => `<button type="button" class="${item.id === module.id ? "is-active" : ""}" data-civil-module-id="${item.id}"><b style="border-color:${item.accent};color:${item.accent}">${item.code}</b><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.target)}</small></span></button>`).join("")}
+      </aside>
+      <section class="civil-method-sheet">
+        <header><div><span>${escapeHtml(module.target)} · 方法优先于计算</span><h3>${escapeHtml(module.name)}</h3><p>${escapeHtml(module.essence)}</p></div><strong>${completed}<small>/${module.topics.length}</small></strong></header>
+        <div class="civil-methods">${module.methods.map((method) => `<span>${escapeHtml(method)}</span>`).join("")}</div>
+        <div class="civil-perspective-strip">
+          <div><span>蒸馏解题视角</span><strong>先选视角，再动笔。</strong></div>
+          ${civilMentalModels.map((model) => `<details><summary>${escapeHtml(model.name)}</summary><p>${escapeHtml(model.note)}</p></details>`).join("")}
+          <a href="${module.sourceUrl}" target="_blank" rel="noreferrer">打开本模块知识库</a>
+        </div>
+        <div class="civil-topic-grid">
+          ${module.topics.map((topic, index) => {
+            const key = `${module.id}:${index}`;
+            return `<label class="${practice.completedTopics?.[key] ? "is-done" : ""}"><input type="checkbox" data-civil-topic="${key}" ${practice.completedTopics?.[key] ? "checked" : ""}><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(topic)}</strong></label>`;
+          }).join("")}
+        </div>
+        ${question ? `<article class="civil-question">
+          <div class="civil-question-meta"><span>${escapeHtml(question.topic)} · ${escapeHtml(question.difficulty)}</span><b>目标 ${question.targetSeconds}s</b></div>
+          <h4>${escapeHtml(question.prompt)}</h4>
+          <div class="civil-options">${question.options.map((option, index) => {
+            const result = answered === null ? "" : index === question.answer ? "is-correct" : index === answered ? "is-wrong" : "";
+            return `<button type="button" class="${result}" data-civil-answer="${index}" ${answered !== null ? "disabled" : ""}><span>${String.fromCharCode(65 + index)}</span>${escapeHtml(option)}</button>`;
+          }).join("")}</div>
+          ${answered !== null ? `<div class="civil-answer ${answered === question.answer ? "is-correct" : "is-wrong"}"><strong>${answered === question.answer ? "回答正确" : `正确答案 ${String.fromCharCode(65 + question.answer)}`}</strong><p><b>方法：</b>${escapeHtml(question.method)}</p><p><b>易错：</b>${escapeHtml(question.pitfall)}</p><button type="button" class="button button-primary" id="retry-civil-question">再练一次</button></div>` : ""}
+        </article>` : `<div class="civil-empty-question"><strong>该模块示范题待接入</strong><span>基础交互已经准备好，后续题库可以直接按 moduleId 和 topic 批量添加。</span></div>`}
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-civil-module-id]").forEach((button) => button.addEventListener("click", () => {
+    state.activeCivilModuleId = button.dataset.civilModuleId;
+    state.civilQuestionIndex = 0;
+    state.civilAnswered = null;
+    state.civilQuestionStartedAt = Date.now();
+    renderCivilAptitude();
+  }));
+  document.querySelectorAll("[data-civil-topic]").forEach((checkbox) => checkbox.addEventListener("change", async () => {
+    const next = civilPracticeState();
+    await saveSetting({ ...next, completedTopics: { ...(next.completedTopics || {}), [checkbox.dataset.civilTopic]: checkbox.checked } });
+    renderCivilStudio();
+    showToast(checkbox.checked ? "专项已完成" : "专项已重新打开");
+  }));
+  document.querySelectorAll("[data-civil-answer]").forEach((button) => button.addEventListener("click", async () => {
+    const answer = Number(button.dataset.civilAnswer);
+    const seconds = Math.max(1, Math.round((Date.now() - state.civilQuestionStartedAt) / 1000));
+    state.civilAnswered = { questionId: question.id, answer };
+    const practiceNow = civilPracticeState();
+    const attempt = { id: crypto.randomUUID(), questionId: question.id, moduleId: module.id, topic: question.topic, answer, correct: answer === question.answer, seconds, date: todayKey(), createdAt: new Date().toISOString() };
+    const errors = answer === question.answer ? practiceNow.errors || [] : [...(practiceNow.errors || []), { id: crypto.randomUUID(), questionId: question.id, moduleId: module.id, topic: question.topic, prompt: question.prompt, reason: "待诊断", rule: question.method, resolved: false, date: todayKey(), createdAt: new Date().toISOString() }];
+    await saveSetting({ ...practiceNow, attempts: [...(practiceNow.attempts || []), attempt], errors });
+    renderCivilStudio();
+  }));
+  document.querySelector("#retry-civil-question")?.addEventListener("click", () => {
+    state.civilAnswered = null;
+    state.civilQuestionStartedAt = Date.now();
+    renderCivilAptitude();
+  });
+}
+
+function shenlunPrompt(type, material, answer) {
+  return `你是严格的申论阅卷教练。请按“识别题型 → 核对材料采分点 → 评价结构与表达 → 给出最小改写任务”的顺序批改。\n\n题型：${type.name}\n任务：${type.task}\n评分维度：${type.rubric.join("、")}\n作答结构：${type.structure.join(" → ")}\n\n给定材料：\n${material || "（未提供，请提醒我补充材料，不能凭空推断采分点。）"}\n\n我的作答：\n${answer || "（未提供）"}\n\n输出要求：先列命中的采分点和遗漏点，再逐句指出问题；不要只给泛化评价，不要虚构标准答案。`;
+}
+
+function renderCivilShenlun() {
+  const practice = civilPracticeState();
+  const type = shenlunTypes.find((item) => item.id === state.activeShenlunTypeId) || shenlunTypes[0];
+  const draft = practice.shenlunDrafts?.[type.id] || { material: "", answer: "" };
+  document.querySelector("#civil-shenlun").innerHTML = `
+    <div class="shenlun-layout">
+      <aside class="shenlun-types">
+        <header><strong>申论四类任务</strong><span>先识别任务，再决定从材料中找什么。</span></header>
+        ${shenlunTypes.map((item) => `<button type="button" class="${item.id === type.id ? "is-active" : ""}" data-shenlun-type="${item.id}"><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.task)}</small></button>`).join("")}
+      </aside>
+      <section class="shenlun-workspace">
+        <header><span>${escapeHtml(type.name)}</span><h3>${escapeHtml(type.task)}</h3><div>${type.structure.map((item, index) => `<p><b>${index + 1}</b>${escapeHtml(item)}</p>`).join("")}</div></header>
+        <div class="shenlun-editor-grid">
+          <label>给定材料<textarea id="shenlun-material" rows="12" placeholder="粘贴题干与材料；后续题库接入后可自动带入。">${escapeHtml(draft.material)}</textarea></label>
+          <label>我的作答 <span id="shenlun-word-count">${draft.answer.length} 字</span><textarea id="shenlun-answer" rows="12" placeholder="先独立作答，再生成批改提示。">${escapeHtml(draft.answer)}</textarea></label>
+        </div>
+        <div class="shenlun-rubric">${type.rubric.map((item) => `<label><input type="checkbox">${escapeHtml(item)}</label>`).join("")}</div>
+        <div class="shenlun-actions"><button class="button button-quiet" id="save-shenlun-draft" type="button">保存草稿</button><button class="button button-primary" id="generate-shenlun-prompt" type="button">生成批改提示</button><button class="button button-quiet" id="complete-shenlun" type="button">完成本次作答</button></div>
+        <label class="shenlun-prompt-output">AI 批改提示<textarea id="shenlun-prompt-output" rows="9" readonly>${escapeHtml(shenlunPrompt(type, draft.material, draft.answer))}</textarea></label>
+        <footer class="civil-source-ledger"><span>参考知识库</span>${civilKnowledgeSources.map((source) => `<a href="${source.url}" target="_blank" rel="noreferrer"><strong>${escapeHtml(source.name)}</strong><small>${escapeHtml(source.scope)}</small></a>`).join("")}</footer>
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-shenlun-type]").forEach((button) => button.addEventListener("click", () => {
+    state.activeShenlunTypeId = button.dataset.shenlunType;
+    renderCivilShenlun();
+  }));
+  document.querySelector("#shenlun-answer").addEventListener("input", (event) => {
+    document.querySelector("#shenlun-word-count").textContent = `${event.target.value.replace(/\s/g, "").length} 字`;
+  });
+  const saveDraft = async () => {
+    const next = civilPracticeState();
+    const value = { material: document.querySelector("#shenlun-material").value, answer: document.querySelector("#shenlun-answer").value, updatedAt: new Date().toISOString() };
+    await saveSetting({ ...next, shenlunDrafts: { ...(next.shenlunDrafts || {}), [type.id]: value } });
+    return value;
+  };
+  document.querySelector("#save-shenlun-draft").addEventListener("click", async () => {
+    await saveDraft();
+    showToast("申论草稿已保存在本机");
+  });
+  document.querySelector("#generate-shenlun-prompt").addEventListener("click", () => {
+    document.querySelector("#shenlun-prompt-output").value = shenlunPrompt(type, document.querySelector("#shenlun-material").value.trim(), document.querySelector("#shenlun-answer").value.trim());
+  });
+  document.querySelector("#complete-shenlun").addEventListener("click", async () => {
+    const value = await saveDraft();
+    if (!value.answer.trim()) return showToast("先完成作答，再记录本次训练");
+    const next = civilPracticeState();
+    const activity = { id: crypto.randomUUID(), type: "shenlun-complete", shenlunType: type.id, minutes: 20, date: todayKey(), createdAt: new Date().toISOString() };
+    await saveSetting({ ...next, activities: [...(next.activities || []), activity] });
+    renderCivilStudio();
+    showToast("申论作答已计入训练记录");
+  });
+}
+
+function renderCivilErrors() {
+  const practice = civilPracticeState();
+  const errors = [...(practice.errors || [])].reverse();
+  const attempts = practice.attempts || [];
+  document.querySelector("#civil-errors").innerHTML = `
+    <div class="civil-review-layout">
+      <section class="civil-diagnosis">
+        <header><span>分模块诊断</span><h3>正确率与速度必须一起看。</h3></header>
+        ${civilModules.filter((item) => item.id !== "shenlun").map((module) => {
+          const records = attempts.filter((item) => item.moduleId === module.id);
+          const accuracy = records.length ? Math.round((records.filter((item) => item.correct).length / records.length) * 100) : 0;
+          const seconds = records.length ? Math.round(records.reduce((sum, item) => sum + item.seconds, 0) / records.length) : 0;
+          return `<div class="civil-diagnosis-row"><span style="background:${module.accent}">${module.code}</span><strong>${escapeHtml(module.name)}</strong><b>${accuracy}%</b><small>${records.length ? `${seconds}s / 题` : "暂无作答"}</small></div>`;
+        }).join("")}
+      </section>
+      <section class="civil-error-book">
+        <header><div><span>错题复盘</span><strong>${errors.filter((item) => !item.resolved).length} 道待处理</strong></div><p>写下“看到什么信号 → 应该用什么方法”，再标记解决。</p></header>
+        ${errors.length ? errors.map((item) => `<article class="${item.resolved ? "is-resolved" : ""}"><div><span>${escapeHtml(civilModules.find((module) => module.id === item.moduleId)?.name || "行测")} / ${escapeHtml(item.topic)}</span><strong>${escapeHtml(item.prompt)}</strong><p>${escapeHtml(item.rule)}</p></div><label>错因<select data-civil-error-reason="${item.id}" ${item.resolved ? "disabled" : ""}><option ${item.reason === "待诊断" ? "selected" : ""}>待诊断</option><option ${item.reason === "题型未识别" ? "selected" : ""}>题型未识别</option><option ${item.reason === "方法选错" ? "selected" : ""}>方法选错</option><option ${item.reason === "计算失误" ? "selected" : ""}>计算失误</option><option ${item.reason === "时间失控" ? "selected" : ""}>时间失控</option></select></label><button type="button" data-civil-resolve="${item.id}">${item.resolved ? "重新打开" : "标记已解决"}</button></article>`).join("") : `<div class="civil-empty"><strong>还没有错题</strong><span>在行测专项中答错后会自动加入这里。</span></div>`}
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-civil-error-reason]").forEach((select) => select.addEventListener("change", async () => {
+    const next = civilPracticeState();
+    await saveSetting({ ...next, errors: (next.errors || []).map((item) => item.id === select.dataset.civilErrorReason ? { ...item, reason: select.value } : item) });
+  }));
+  document.querySelectorAll("[data-civil-resolve]").forEach((button) => button.addEventListener("click", async () => {
+    const next = civilPracticeState();
+    await saveSetting({ ...next, errors: (next.errors || []).map((item) => item.id === button.dataset.civilResolve ? { ...item, resolved: !item.resolved } : item) });
+    renderCivilStudio();
+  }));
+}
+
+function renderCivilStudio() {
+  renderCivilSummary();
+  renderCivilToday();
+  renderCivilAptitude();
+  renderCivilShenlun();
+  renderCivilErrors();
+  document.querySelectorAll("[data-civil-view]").forEach((button) => {
+    button.onclick = () => {
+      state.civilView = button.dataset.civilView;
+      syncCivilPanels();
+    };
+  });
+  syncCivilPanels();
 }
 
 function englishPracticeState() {
@@ -1753,6 +2021,7 @@ function renderAll() {
   renderRoadmap();
   renderLearningStudio();
   renderCpaStudio();
+  renderCivilStudio();
   renderEnglishStudio();
   renderModules();
   renderDailyPapers();

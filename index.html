@@ -10,7 +10,7 @@
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260921-8" />
+    <link rel="stylesheet" href="./styles.css?v=20260921-9" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -181,6 +181,30 @@
             <div class="cpa-panel" data-cpa-panel="tutor" id="cpa-tutor"></div>
           </section>
 
+          <section class="civil-studio" aria-labelledby="civil-studio-title">
+            <header class="civil-studio-head">
+              <div class="civil-title-lockup">
+                <span class="civil-mark" aria-hidden="true">公</span>
+                <div>
+                  <p>行测提速 × 申论表达</p>
+                  <h2 id="civil-studio-title">考公考编训练台</h2>
+                  <span>用正确率和耗时诊断行测，用采分点和结构复盘申论。</span>
+                </div>
+              </div>
+              <div class="civil-summary" id="civil-summary"></div>
+            </header>
+            <nav class="civil-tabs" aria-label="考公考编训练台视图">
+              <button class="is-active" type="button" data-civil-view="today">今日训练</button>
+              <button type="button" data-civil-view="aptitude">行测专项</button>
+              <button type="button" data-civil-view="shenlun">申论工坊</button>
+              <button type="button" data-civil-view="errors">错题复盘</button>
+            </nav>
+            <div class="civil-panel is-active" data-civil-panel="today" id="civil-today"></div>
+            <div class="civil-panel" data-civil-panel="aptitude" id="civil-aptitude"></div>
+            <div class="civil-panel" data-civil-panel="shenlun" id="civil-shenlun"></div>
+            <div class="civil-panel" data-civil-panel="errors" id="civil-errors"></div>
+          </section>
+
           <section class="english-studio" aria-labelledby="english-studio-title">
             <header class="english-studio-head">
               <div>
@@ -343,6 +367,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260921-8"></script>
+    <script type="module" src="./app.js?v=20260921-9"></script>
   </body>
 </html>

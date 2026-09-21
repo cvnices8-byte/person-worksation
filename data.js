@@ -288,6 +288,120 @@ export const cpaQuestionBank = [
   },
 ];
 
+export const civilYearPlan = [
+  { id: "baseline", weeks: "第 1–8 周", name: "建立基线", focus: "分模块正确率、单题耗时与申论表达", target: "完成一次行测分模块测评和一篇申论限时作答。" },
+  { id: "method", weeks: "第 9–20 周", name: "专项方法", focus: "题型识别、方法选择与规范表达", target: "每个主模块形成自己的解题流程和错因标签。" },
+  { id: "speed", weeks: "第 21–36 周", name: "速度强化", focus: "成组练习、限时取舍与申论采分点", target: "正确率不下降的前提下压缩用时，稳定完成套题。" },
+  { id: "mock", weeks: "第 37–52 周", name: "整卷模考", focus: "时间分配、岗位适配与弱项回炉", target: "以整卷数据安排复习，不再平均用力。" },
+];
+
+export const civilModules = [
+  {
+    id: "data-analysis", code: "资", name: "资料分析", target: "25–30 分钟", accent: "#4f4a92",
+    sourceUrl: "https://github.com/brunomiyeo/kaogong/blob/main/data.html",
+    essence: "先识别 A、B、R、X，再选估算方法；速度来自识别而不是盲算。",
+    topics: ["基期与现期", "增长量与增长率", "比重", "平均数", "倍数", "综合分析"],
+    methods: ["截位直除", "份数思维", "假设分配", "首数与差距判断"],
+  },
+  {
+    id: "quant", code: "数", name: "数量关系", target: "选做 5–8 分钟", accent: "#7655a8",
+    sourceUrl: "https://github.com/brunomiyeo/kaogong/blob/main/quant.html",
+    essence: "先判断题型和可解性，只做能迅速建模的题，避免在低把握题上沉没时间。",
+    topics: ["工程问题", "行程问题", "利润问题", "排列组合与概率", "容斥与最值", "几何与比例"],
+    methods: ["赋特殊值", "方程与比例", "代入排除", "枚举与分类"],
+  },
+  {
+    id: "verbal", code: "言", name: "言语理解", target: "约 35 分钟", accent: "#9a4f7a",
+    sourceUrl: "https://github.com/brunomiyeo/kaogong/blob/main/speech.html",
+    essence: "找语境、句间关系与中心句，答案必须解释材料而不是只凭语感。",
+    topics: ["逻辑填空", "中心理解", "细节判断", "标题填入", "语句填空与排序", "篇章阅读"],
+    methods: ["关联词定位", "主题词复现", "行文结构", "选项差异对比"],
+  },
+  {
+    id: "reasoning", code: "判", name: "判断推理", target: "约 35 分钟", accent: "#3f668f",
+    sourceUrl: "https://github.com/brunomiyeo/kaogong/blob/main/logic.html",
+    essence: "把自然语言翻译为要素、关系或论证结构，再验证选项。",
+    topics: ["图形推理", "定义判断", "类比推理", "翻译推理", "真假推理", "加强与削弱"],
+    methods: ["要素提取", "规则映射", "充分必要条件", "论点论据拆分"],
+  },
+  {
+    id: "common", code: "常", name: "常识判断", target: "8–10 分钟", accent: "#597363",
+    sourceUrl: "https://github.com/brunomiyeo/kaogong",
+    essence: "会则迅速作答，不会则排除后取舍；积累应围绕错题而不是漫无目的阅读。",
+    topics: ["政治理论", "法律常识", "经济常识", "科技与地理", "历史人文", "时政积累"],
+    methods: ["关键词排除", "常识边界判断", "错题主题归档", "时政事实核验"],
+  },
+  {
+    id: "shenlun", code: "申", name: "申论", target: "约 150 分钟", accent: "#a2633f",
+    sourceUrl: "https://github.com/coffe-d/Shenlun.skill/tree/master",
+    essence: "答案必须来自材料和题干要求；先找采分点，再组织层次，最后规范表达。",
+    topics: ["归纳概括", "综合分析", "提出对策", "公文写作", "大作文"],
+    methods: ["审题定任务", "材料标注", "要点加工", "分条表达"],
+  },
+];
+
+export const civilMentalModels = [
+  { id: "classify", name: "分类先行", note: "先判断题型，再调用对应方法，避免凭感觉开算。" },
+  { id: "options", name: "选项驱动", note: "利用选项差距、数量级和排除条件决定计算精度。" },
+  { id: "transform", name: "转化换元", note: "把陌生表述转成比例、份数、要素或逻辑关系。" },
+  { id: "qualitative", name: "先定性后精算", note: "先判断方向和范围，只有必要时才进入精确计算。" },
+  { id: "setter", name: "出题人视角", note: "识别题干想考的区分点，以及选项如何制造陷阱。" },
+  { id: "practice", name: "实战主义", note: "方法必须在限时题组中验证，不能停留在听懂。" },
+  { id: "encode", name: "口诀化封装", note: "把稳定步骤压缩成可迅速提取的判断规则。" },
+];
+
+export const civilKnowledgeSources = [
+  { name: "kaogong", scope: "花生十三全模块知识库与专题页面", url: "https://github.com/brunomiyeo/kaogong" },
+  { name: "huasheng13-skill", scope: "六模块方法、题型与实战复盘", url: "https://github.com/WangJunqing-coder/huasheng13-skill" },
+  { name: "huasheng-shisan-perspective", scope: "七个心智模型与解题视角蒸馏", url: "https://github.com/ksbsjsj/huasheng-shisan-perspective" },
+  { name: "Shenlun.skill", scope: "申论识题、采分点与分项批改流程", url: "https://github.com/coffe-d/Shenlun.skill/tree/master" },
+];
+
+export const civilQuestionBank = [
+  {
+    id: "civil-data-growth", moduleId: "data-analysis", topic: "增长量与增长率", difficulty: "基础", targetSeconds: 70,
+    prompt: "某指标由 800 增长到 1,000，其增长率约为多少？",
+    options: ["20%", "25%", "40%", "80%"], answer: 1,
+    method: "先求增长量 200，再用增长量 ÷ 基期：200 ÷ 800 = 25%。",
+    pitfall: "把现期 1,000 误作分母会得到 20%。增长率的分母是基期。",
+  },
+  {
+    id: "civil-quant-work", moduleId: "quant", topic: "工程问题", difficulty: "基础", targetSeconds: 90,
+    prompt: "甲单独完成一项工作需要 6 天，乙需要 3 天。两人合作需要多少天？",
+    options: ["1 天", "2 天", "3 天", "4 天"], answer: 1,
+    method: "赋总量为 6，甲效率 1、乙效率 2，合作效率 3，所以需要 6 ÷ 3 = 2 天。",
+    pitfall: "不能直接把 6 天和 3 天做算术平均；应先转化为效率。",
+  },
+  {
+    id: "civil-verbal-main", moduleId: "verbal", topic: "中心理解", difficulty: "基础", targetSeconds: 55,
+    prompt: "一项公共政策只有被公众理解，才能形成稳定预期；只有执行过程公开透明，公众才可能真正理解。因此，政策发布只是起点，持续解释和反馈同样重要。这段文字意在强调什么？",
+    options: ["政策制定比执行更重要", "政策沟通应贯穿执行过程", "公众难以理解专业政策", "政策发布应尽量简短"], answer: 1,
+    method: "尾句由“因此”引出结论，重点是发布之后仍需持续解释和反馈。",
+    pitfall: "不要选择材料提及但没有被作者重点强调的局部信息。",
+  },
+  {
+    id: "civil-reasoning-logic", moduleId: "reasoning", topic: "翻译推理", difficulty: "基础", targetSeconds: 65,
+    prompt: "如果完成资格审查，就会收到确认通知。小李没有收到确认通知。由此可以推出什么？",
+    options: ["小李没有完成资格审查", "小李一定提交了错误材料", "小李已经通过笔试", "无法得到任何结论"], answer: 0,
+    method: "命题为“审查完成 → 收到通知”。否定后件可以否定前件，因此未收到通知 → 未完成审查。",
+    pitfall: "只能推出没有完成审查，不能进一步猜测具体原因。",
+  },
+  {
+    id: "civil-common-law", moduleId: "common", topic: "法律常识", difficulty: "基础", targetSeconds: 30,
+    prompt: "在法律规范的效力层级中，地方性法规不得与哪一项相抵触？",
+    options: ["单位内部制度", "行业倡议", "上位法", "社区公约"], answer: 2,
+    method: "判断规范效力时先看制定主体和效力层级，下位规范不得与上位法相抵触。",
+    pitfall: "不要把没有法律规范效力的倡议、内部制度与上位法混为一谈。",
+  },
+];
+
+export const shenlunTypes = [
+  { id: "summary", name: "归纳概括", task: "从材料中提取问题、原因、做法、成效或特点。", structure: ["确认对象和限定词", "按段标注原词要点", "合并同类项并分条表达"], rubric: ["要点覆盖", "材料忠实", "分类清晰", "语言简洁"] },
+  { id: "analysis", name: "综合分析", task: "解释词句、评价观点、分析现象或梳理关系。", structure: ["总括句回应题干", "分维度展开材料依据", "回扣题干形成结论"], rubric: ["观点明确", "分析完整", "逻辑连贯", "结论准确"] },
+  { id: "document", name: "公文写作", task: "根据身份、对象和目的筛选内容并匹配文种格式。", structure: ["审清身份、对象与目的", "确定文种结构和语气", "按功能组织材料要点"], rubric: ["格式恰当", "目的明确", "内容有效", "语言得体"] },
+  { id: "essay", name: "大作文", task: "围绕主题形成总论点、分论点和完整论证。", structure: ["从题干确定主题关系", "从材料提炼分论点", "用例证、理证和对比展开"], rubric: ["立意准确", "结构完整", "论证充分", "表达规范"] },
+];
+
 export function moduleById(id) {
   return modules.find((item) => item.id === id);
 }
