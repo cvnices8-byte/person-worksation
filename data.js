@@ -323,6 +323,72 @@ export const codingExercises = [
   },
 ];
 
+export const englishVocabulary = [
+  { id: "evidence", word: "evidence", phonetic: "/ˈevɪdəns/", pos: "noun", meaning: "证据；用于支持判断的数据或事实", collocation: "empirical evidence", example: "The evidence suggests that the model fails on rare cases." },
+  { id: "robust", word: "robust", phonetic: "/rəʊˈbʌst/", pos: "adjective", meaning: "稳健的；在条件变化时仍可靠", collocation: "robust to noise", example: "The estimator is robust to small amounts of missing data." },
+  { id: "infer", word: "infer", phonetic: "/ɪnˈfɜːr/", pos: "verb", meaning: "根据证据推断", collocation: "infer from observations", example: "We cannot infer causality from correlation alone." },
+  { id: "estimate", word: "estimate", phonetic: "/ˈestɪmeɪt/", pos: "verb / noun", meaning: "估计；基于样本得到近似值", collocation: "estimate the effect", example: "The study estimates the effect of price on demand." },
+  { id: "variance", word: "variance", phonetic: "/ˈveəriəns/", pos: "noun", meaning: "方差；衡量数值离散程度", collocation: "bias–variance trade-off", example: "Regularization can reduce variance at the cost of some bias." },
+  { id: "bias", word: "bias", phonetic: "/ˈbaɪəs/", pos: "noun", meaning: "偏差；系统性地偏离真实值", collocation: "selection bias", example: "Selection bias limits how broadly we can apply the result." },
+  { id: "benchmark", word: "benchmark", phonetic: "/ˈbentʃmɑːrk/", pos: "noun / verb", meaning: "基准；用于比较性能的统一测试", collocation: "evaluate on a benchmark", example: "The model performs well on the benchmark but poorly in production." },
+  { id: "deploy", word: "deploy", phonetic: "/dɪˈplɔɪ/", pos: "verb", meaning: "部署；将模型投入实际环境", collocation: "deploy a model", example: "The team deployed the model behind a monitored API." },
+  { id: "retrieve", word: "retrieve", phonetic: "/rɪˈtriːv/", pos: "verb", meaning: "检索；从集合中找回相关内容", collocation: "retrieve relevant documents", example: "The system retrieves relevant documents before generating an answer." },
+  { id: "revenue", word: "revenue", phonetic: "/ˈrevənjuː/", pos: "noun", meaning: "营业收入；企业日常经营产生的收入", collocation: "recognize revenue", example: "Revenue is recognized when the performance obligation is satisfied." },
+  { id: "liability", word: "liability", phonetic: "/ˌlaɪəˈbɪləti/", pos: "noun", meaning: "负债；企业承担的现时义务", collocation: "current liability", example: "The obligation is reported as a current liability." },
+  { id: "impairment", word: "impairment", phonetic: "/ɪmˈpeəmənt/", pos: "noun", meaning: "减值；资产账面价值超过可收回金额", collocation: "impairment loss", example: "The company recognized an impairment loss on the asset." },
+  { id: "material", word: "material", phonetic: "/məˈtɪəriəl/", pos: "adjective", meaning: "重大的；足以影响报表使用者判断", collocation: "material misstatement", example: "The auditor assessed the risk of material misstatement." },
+  { id: "audit", word: "audit", phonetic: "/ˈɔːdɪt/", pos: "noun / verb", meaning: "审计；对财务信息进行独立检查", collocation: "audit evidence", example: "The audit team collected evidence from multiple sources." },
+  { id: "cash-flow", word: "cash flow", phonetic: "/ˈkæʃ fləʊ/", pos: "noun", meaning: "现金流；一定期间内现金流入与流出", collocation: "operating cash flow", example: "Operating cash flow improved despite lower reported profit." },
+  { id: "stakeholder", word: "stakeholder", phonetic: "/ˈsteɪkhəʊldə/", pos: "noun", meaning: "利益相关者；受组织决策影响的人或群体", collocation: "key stakeholders", example: "The findings were presented to key stakeholders." },
+];
+
+export const englishQuickLessons = [
+  {
+    id: "lesson-evidence",
+    prompt: "The conclusion is not supported by enough empirical ____.",
+    options: ["evidence", "revenue", "liability"],
+    answer: 0,
+    explanation: "empirical evidence 表示通过观察或实验获得的证据。",
+  },
+  {
+    id: "lesson-causality",
+    prompt: "Which sentence is academically cautious?",
+    options: ["The data proves the policy works.", "The result suggests an association, not necessarily causation.", "The policy always causes growth."],
+    answer: 1,
+    explanation: "论文表达需要区分相关性与因果性，并避免无依据的绝对判断。",
+  },
+  {
+    id: "lesson-model",
+    prompt: "A model that remains reliable when inputs contain noise is ____.",
+    options: ["material", "robust", "current"],
+    answer: 1,
+    explanation: "robust 描述系统对噪声、扰动或条件变化不敏感。",
+  },
+  {
+    id: "lesson-finance",
+    prompt: "The company recognized an impairment ____ on the asset.",
+    options: ["benchmark", "loss", "retrieval"],
+    answer: 1,
+    explanation: "impairment loss 是财务英语中的固定搭配：资产减值损失。",
+  },
+  {
+    id: "lesson-method",
+    prompt: "Choose the clearest method sentence.",
+    options: ["We did some tests on data.", "We evaluated the classifier using five-fold cross-validation.", "The model was good in many ways."],
+    answer: 1,
+    explanation: "专业写作应说明动作、对象和评估方法，而不是使用含糊形容词。",
+  },
+];
+
+export const shadowingSentences = [
+  { id: "shadow-1", text: "The evidence suggests that the model is robust across different datasets.", focus: "重读 evidence、robust 和 datasets；弱读 that。", translation: "证据表明，该模型在不同数据集上都具有稳健性。" },
+  { id: "shadow-2", text: "We cannot infer causality from correlation alone.", focus: "cannot 与 causality 清晰连读；句尾下降。", translation: "我们不能仅从相关性推断因果关系。" },
+  { id: "shadow-3", text: "The system retrieves relevant documents before generating an answer.", focus: "retrieves 的尾音 /z/；before 后不必停顿。", translation: "系统在生成答案之前检索相关文档。" },
+  { id: "shadow-4", text: "Revenue is recognized when the performance obligation is satisfied.", focus: "recognized 与 obligation 是信息重音。", translation: "当履约义务得到满足时确认收入。" },
+  { id: "shadow-5", text: "The auditor assessed the risk of material misstatement.", focus: "material misstatement 作为一个意群朗读。", translation: "审计师评估了重大错报风险。" },
+  { id: "shadow-6", text: "Our results should be interpreted with caution because the sample is small.", focus: "with caution 轻停顿；because 引出局限。", translation: "由于样本较小，应谨慎解释我们的结果。" },
+];
+
 export const fallbackPapers = [
   {
     id: "1706.03762",

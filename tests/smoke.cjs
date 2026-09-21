@@ -69,6 +69,33 @@ const { chromium } = require("playwright");
   await page.locator('[data-studio-view="theory"]').click();
   await page.screenshot({ path: path.join(output, "modules.png"), fullPage: true });
 
+  if (!(await page.getByRole("heading", { name: "英语训练台" }).isVisible())) throw new Error("英语训练台未显示");
+  if ((await page.locator("[data-english-view]").count()) !== 4) throw new Error("英语训练视图不完整");
+  const quickAnswers = [0, 1, 1, 1, 1];
+  for (let index = 0; index < quickAnswers.length; index += 1) {
+    await page.locator(`[data-lesson-answer="${quickAnswers[index]}"]`).click();
+    await page.locator("#next-quick-lesson").click();
+  }
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("15/60"));
+  await page.locator('[data-english-view="vocabulary"]').click();
+  if (!(await page.getByRole("button", { name: "显示答案" }).isVisible())) throw new Error("词汇回忆卡未显示");
+  const dueBefore = Number(await page.locator(".vocabulary-ledger strong").first().innerText());
+  await page.getByRole("button", { name: "显示答案" }).click();
+  if (!(await page.locator(".word-answer").isVisible())) throw new Error("词汇答案未揭示");
+  await page.locator('[data-vocab-rating="good"]').click();
+  await page.waitForFunction((previous) => Number(document.querySelector(".vocabulary-ledger strong")?.textContent) < previous, dueBefore);
+  await page.locator('[data-english-view="shadowing"]').click();
+  await page.getByRole("button", { name: "完成本轮跟读" }).click();
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("26/60"));
+  await page.locator('[data-english-view="paper"]').click();
+  await page.locator('#paper-english-form input[name="question"]').fill("This paper investigates how a model can learn useful representations from data.");
+  await page.locator('#paper-english-form textarea[name="summary"]').fill("This paper studies a practical machine learning problem and proposes a clear modeling approach. The authors evaluate the method on several datasets and compare it with strong baselines. Their results suggest that the proposed design improves performance, although the evidence should be interpreted carefully because the experiments cover only a limited set of tasks and conditions.");
+  await page.getByRole("button", { name: "保存草稿" }).click();
+  await page.getByRole("button", { name: "完成本次训练" }).click();
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("46/60"));
+  await page.locator('[data-english-view="today"]').click();
+  await page.screenshot({ path: path.join(output, "english-studio.png"), fullPage: true });
+
   await page.locator('[data-view="papers"]').click();
   await page.waitForFunction(() => document.querySelectorAll(".daily-paper").length >= 4);
   if (!(await page.locator("#paper-feed-status").innerText()).includes("本机基础精选")) throw new Error("离线论文推荐未启用");
@@ -114,6 +141,9 @@ const { chromium } = require("playwright");
   await mobile.locator('[data-studio-view="code"]').click();
   if (!(await mobile.locator("#code-editor").isVisible())) throw new Error("移动端代码实验台未显示");
   await mobile.screenshot({ path: path.join(output, "mobile-code-lab.png"), fullPage: true });
+  await mobile.locator('[data-english-view="vocabulary"]').click();
+  if (!(await mobile.getByRole("button", { name: "显示答案" }).isVisible())) throw new Error("移动端词汇训练未显示");
+  await mobile.screenshot({ path: path.join(output, "mobile-english.png"), fullPage: true });
 
   if (consoleErrors.length) throw new Error(`Console errors: ${consoleErrors.join(" | ")}`);
   await browser.close();

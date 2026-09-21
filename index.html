@@ -10,7 +10,7 @@
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260920-3" />
+    <link rel="stylesheet" href="./styles.css?v=20260921-4" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -155,6 +155,27 @@
             </div>
           </section>
 
+          <section class="english-studio" aria-labelledby="english-studio-title">
+            <header class="english-studio-head">
+              <div>
+                <p>ENGLISH PRACTICE / 60 MINUTES</p>
+                <h2 id="english-studio-title">英语训练台</h2>
+                <span>用短课建立连续性，用语境记住词汇，再把论文与专业知识说出来。</span>
+              </div>
+              <div class="english-today-stats" id="english-today-stats"></div>
+            </header>
+            <nav class="english-tabs" aria-label="英语训练台视图">
+              <button class="is-active" type="button" data-english-view="today">今日训练</button>
+              <button type="button" data-english-view="vocabulary">语境词汇</button>
+              <button type="button" data-english-view="shadowing">听说跟读</button>
+              <button type="button" data-english-view="paper">论文英语</button>
+            </nav>
+            <div class="english-panel is-active" data-english-panel="today" id="english-today"></div>
+            <div class="english-panel" data-english-panel="vocabulary" id="english-vocabulary"></div>
+            <div class="english-panel" data-english-panel="shadowing" id="english-shadowing"></div>
+            <div class="english-panel" data-english-panel="paper" id="english-paper"></div>
+          </section>
+
           <div class="module-board" id="module-board"></div>
         </section>
 
@@ -294,6 +315,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260920-3"></script>
+    <script type="module" src="./app.js?v=20260921-4"></script>
   </body>
 </html>

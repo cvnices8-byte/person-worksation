@@ -1,15 +1,18 @@
-import { db } from "./db.js?v=20260920-3";
+import { db } from "./db.js?v=20260921-4";
 import {
   codingExercises,
   dataAiTheory,
+  englishQuickLessons,
+  englishVocabulary,
   fallbackPapers,
   learningPaths,
   learningResources,
   moduleById,
   modules,
   paperCategories,
+  shadowingSentences,
   yearlyPhases,
-} from "./data.js?v=20260920-3";
+} from "./data.js?v=20260921-4";
 
 const state = {
   tasks: [],
@@ -22,6 +25,14 @@ const state = {
   paperCategory: "all",
   studioView: "theory",
   activeExerciseId: codingExercises[0].id,
+  englishView: "today",
+  vocabularyRevealed: false,
+  activeVocabularyId: englishVocabulary[0].id,
+  quickLessonIndex: 0,
+  quickLessonScore: 0,
+  quickLessonAnswered: null,
+  activeShadowingIndex: 0,
+  quickLessonFinished: false,
 };
 
 let plannerDraft = [];
@@ -522,6 +533,356 @@ function renderLearningStudio() {
   document.querySelectorAll("[data-studio-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.studioPanel === state.studioView));
 }
 
+function englishPracticeState() {
+  return getSetting("english-practice", {
+    id: "english-practice",
+    reviews: {},
+    activities: [],
+    paperDrafts: {},
+    shadowCompleted: {},
+  });
+}
+
+function englishTodayActivities() {
+  return (englishPracticeState().activities || []).filter((activity) => activity.date === todayKey());
+}
+
+function englishStreak() {
+  const dates = new Set((englishPracticeState().activities || []).map((activity) => activity.date));
+  const cursor = new Date();
+  if (!dates.has(todayKey())) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (true) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    if (!dates.has(key)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function newEnglishActivity(type, minutes, xp, label) {
+  return {
+    id: crypto.randomUUID(),
+    type,
+    minutes,
+    xp,
+    label,
+    date: todayKey(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function recordEnglishActivity(type, minutes, xp, label) {
+  const practice = englishPracticeState();
+  await saveSetting({
+    ...practice,
+    activities: [...(practice.activities || []), newEnglishActivity(type, minutes, xp, label)],
+  });
+}
+
+function speakEnglish(text, rate = 0.88) {
+  if (!("speechSynthesis" in window)) {
+    showToast("当前浏览器不支持语音朗读");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = rate;
+  const voice = window.speechSynthesis.getVoices().find((item) => item.lang.startsWith("en"));
+  if (voice) utterance.voice = voice;
+  window.speechSynthesis.speak(utterance);
+}
+
+function renderEnglishStats() {
+  const activities = englishTodayActivities();
+  const minutes = activities.reduce((sum, activity) => sum + Number(activity.minutes || 0), 0);
+  const xp = activities.reduce((sum, activity) => sum + Number(activity.xp || 0), 0);
+  const progress = Math.min((minutes / 60) * 100, 100);
+  document.querySelector("#english-today-stats").innerHTML = `
+    <div class="english-stat"><strong>${englishStreak()}</strong><span>连续天数</span></div>
+    <div class="english-stat"><strong>${minutes}<small>/60</small></strong><span>今日分钟</span></div>
+    <div class="english-stat"><strong>${xp}</strong><span>练习点</span></div>
+    <div class="english-progress" aria-label="今日英语训练进度"><span style="width:${progress}%"></span></div>`;
+}
+
+function renderQuickLesson() {
+  const container = document.querySelector("#english-quick-lesson");
+  if (!container) return;
+  const completedToday = englishTodayActivities().some((activity) => activity.type === "quick-lesson");
+  if (state.quickLessonFinished || (completedToday && state.quickLessonIndex === 0 && state.quickLessonAnswered === null)) {
+    container.innerHTML = `
+      <div class="quick-finish">
+        <span>短课完成</span>
+        <strong>${completedToday && !state.quickLessonFinished ? "今日已练" : `${state.quickLessonScore} / ${englishQuickLessons.length}`}</strong>
+        <p>反馈已经留下。下一步不要继续刷题，去做一次词汇回忆或口头输出。</p>
+        <button class="text-button" id="restart-quick-lesson" type="button">再练一次</button>
+      </div>`;
+    document.querySelector("#restart-quick-lesson").addEventListener("click", () => {
+      state.quickLessonIndex = 0;
+      state.quickLessonScore = 0;
+      state.quickLessonAnswered = null;
+      state.quickLessonFinished = false;
+      renderEnglishToday();
+    });
+    return;
+  }
+
+  const lesson = englishQuickLessons[state.quickLessonIndex];
+  const answered = state.quickLessonAnswered;
+  container.innerHTML = `
+    <div class="quick-progress"><span>短课 ${state.quickLessonIndex + 1} / ${englishQuickLessons.length}</span><span>答对 ${state.quickLessonScore}</span></div>
+    <h3>${escapeHtml(lesson.prompt)}</h3>
+    <div class="quick-options">
+      ${lesson.options
+        .map((option, index) => {
+          const resultClass = answered === null ? "" : index === lesson.answer ? "is-correct" : index === answered ? "is-wrong" : "";
+          return `<button class="quick-option ${resultClass}" type="button" data-lesson-answer="${index}" ${answered !== null ? "disabled" : ""}><span>${String.fromCharCode(65 + index)}</span>${escapeHtml(option)}</button>`;
+        })
+        .join("")}
+    </div>
+    ${answered !== null ? `<div class="quick-feedback ${answered === lesson.answer ? "is-correct" : "is-wrong"}"><strong>${answered === lesson.answer ? "回答正确" : "需要重看"}</strong><span>${escapeHtml(lesson.explanation)}</span><button class="button button-primary" id="next-quick-lesson" type="button">${state.quickLessonIndex === englishQuickLessons.length - 1 ? "完成短课" : "下一题"}</button></div>` : ""}`;
+
+  container.querySelectorAll("[data-lesson-answer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.quickLessonAnswered = Number(button.dataset.lessonAnswer);
+      if (state.quickLessonAnswered === lesson.answer) state.quickLessonScore += 1;
+      renderQuickLesson();
+    });
+  });
+  document.querySelector("#next-quick-lesson")?.addEventListener("click", async () => {
+    if (state.quickLessonIndex === englishQuickLessons.length - 1) {
+      state.quickLessonFinished = true;
+      await recordEnglishActivity("quick-lesson", 15, state.quickLessonScore * 4, `专业英语短课 ${state.quickLessonScore}/${englishQuickLessons.length}`);
+      renderEnglishStudio();
+      showToast("短课完成，今日英语进度已更新");
+    } else {
+      state.quickLessonIndex += 1;
+      state.quickLessonAnswered = null;
+      renderQuickLesson();
+    }
+  });
+}
+
+function renderEnglishToday() {
+  const activities = englishTodayActivities();
+  const vocabularyCount = activities.filter((activity) => activity.type === "vocabulary").length;
+  const steps = [
+    { type: "quick-lesson", minutes: 15, title: "专业英语短课", detail: "词汇、语法与准确表达", done: activities.some((item) => item.type === "quick-lesson") },
+    { type: "vocabulary", minutes: 15, title: "语境词汇", detail: `主动回忆 10 个词 · 今日 ${vocabularyCount} 个`, done: vocabularyCount >= 10 },
+    { type: "shadowing", minutes: 10, title: "听说跟读", detail: "听两遍、跟读三遍、录下最后一遍", done: activities.some((item) => item.type === "shadowing") },
+    { type: "paper", minutes: 20, title: "论文英语", detail: "拆摘要结构，再用自己的话改写", done: activities.some((item) => item.type === "paper") },
+  ];
+  document.querySelector("#english-today").innerHTML = `
+    <div class="english-day-grid">
+      <aside class="english-route">
+        <div class="english-route-head"><strong>今日 60 分钟</strong><span>完成短课即可延续连续天数</span><span>这里按建议时长累计；总学习时长仍由顶部“记录学习”统计</span></div>
+        ${steps
+          .map(
+            (step, index) => `<button type="button" class="english-route-step ${step.done ? "is-done" : ""}" data-route-view="${step.type === "quick-lesson" ? "today" : step.type}">
+              <span>${step.done ? "✓" : String(index + 1).padStart(2, "0")}</span>
+              <span><strong>${escapeHtml(step.title)}</strong><small>${escapeHtml(step.detail)}</small></span>
+              <b>${step.minutes}m</b>
+            </button>`,
+          )
+          .join("")}
+      </aside>
+      <section class="english-lesson-sheet" id="english-quick-lesson"></section>
+    </div>`;
+  document.querySelectorAll("[data-route-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextView = button.dataset.routeView;
+      if (nextView === "today") return;
+      state.englishView = nextView;
+      syncEnglishPanels();
+    });
+  });
+  renderQuickLesson();
+}
+
+function dueVocabulary() {
+  const reviews = englishPracticeState().reviews || {};
+  const now = Date.now();
+  return englishVocabulary.filter((item) => !reviews[item.id] || new Date(reviews[item.id].dueAt).getTime() <= now);
+}
+
+function renderEnglishVocabulary() {
+  const practice = englishPracticeState();
+  const reviews = practice.reviews || {};
+  const due = dueVocabulary();
+  let word = englishVocabulary.find((item) => item.id === state.activeVocabularyId && due.some((dueItem) => dueItem.id === item.id));
+  if (!word) word = due[0];
+  if (word) state.activeVocabularyId = word.id;
+  const learned = englishVocabulary.filter((item) => reviews[item.id]).length;
+  const stable = englishVocabulary.filter((item) => Number(reviews[item.id]?.intervalDays || 0) >= 7).length;
+  if (!word) {
+    document.querySelector("#english-vocabulary").innerHTML = `<div class="vocab-complete"><span>今日到期词汇已清空</span><h3>先在阅读中遇见新词，再加入记忆。</h3><p>当前已学习 ${learned} 个词，其中 ${stable} 个进入稳定复习阶段。</p></div>`;
+    return;
+  }
+  const blank = word.example.replace(new RegExp(word.word.replace(" ", "\\s+"), "i"), "_____");
+  document.querySelector("#english-vocabulary").innerHTML = `
+    <div class="vocabulary-layout">
+      <aside class="vocabulary-ledger">
+        <div><span>今日到期</span><strong>${due.length}</strong></div>
+        <div><span>已经学习</span><strong>${learned}</strong></div>
+        <div><span>稳定掌握</span><strong>${stable}</strong></div>
+        <p>先凭例句回忆，再看答案。评级应反映真实提取难度，而不是熟悉感。</p>
+      </aside>
+      <section class="word-card ${state.vocabularyRevealed ? "is-revealed" : ""}">
+        <div class="word-context"><span>在语境中回忆</span><p>${escapeHtml(blank)}</p></div>
+        <div class="word-head"><div><h3>${escapeHtml(word.word)}</h3><span>${escapeHtml(word.phonetic)} · ${escapeHtml(word.pos)}</span></div><button class="word-audio" type="button" id="play-word" aria-label="朗读 ${escapeHtml(word.word)}">▶</button></div>
+        ${state.vocabularyRevealed ? `<div class="word-answer"><strong>${escapeHtml(word.meaning)}</strong><span>${escapeHtml(word.collocation)}</span><p>${escapeHtml(word.example)}</p></div><div class="memory-ratings"><button data-vocab-rating="again" type="button"><span>重来</span><small>10 分钟</small></button><button data-vocab-rating="hard" type="button"><span>困难</span><small>1 天</small></button><button data-vocab-rating="good" type="button"><span>记得</span><small>3+ 天</small></button><button data-vocab-rating="easy" type="button"><span>简单</span><small>7+ 天</small></button></div>` : `<button class="reveal-word" id="reveal-word" type="button">显示答案</button>`}
+      </section>
+    </div>`;
+  document.querySelector("#play-word").addEventListener("click", () => speakEnglish(`${word.word}. ${word.example}`, 0.82));
+  document.querySelector("#reveal-word")?.addEventListener("click", () => {
+    state.vocabularyRevealed = true;
+    renderEnglishVocabulary();
+  });
+  document.querySelectorAll("[data-vocab-rating]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const rating = button.dataset.vocabRating;
+      const current = englishPracticeState();
+      const previous = current.reviews?.[word.id] || { intervalDays: 0, repetitions: 0 };
+      const intervalMap = { again: 0, hard: 1, good: Math.max(3, Math.round(previous.intervalDays * 2.1)), easy: Math.max(7, Math.round(previous.intervalDays * 3)) };
+      const delayMs = rating === "again" ? 10 * 60 * 1000 : intervalMap[rating] * 24 * 60 * 60 * 1000;
+      const review = { intervalDays: intervalMap[rating], repetitions: previous.repetitions + 1, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + delayMs).toISOString() };
+      await saveSetting({
+        ...current,
+        reviews: { ...(current.reviews || {}), [word.id]: review },
+        activities: [...(current.activities || []), newEnglishActivity("vocabulary", 1, rating === "again" ? 1 : 2, `复习 ${word.word}`)],
+      });
+      const next = dueVocabulary().find((item) => item.id !== word.id);
+      if (next) state.activeVocabularyId = next.id;
+      state.vocabularyRevealed = false;
+      renderEnglishStudio();
+    });
+  });
+}
+
+function renderEnglishShadowing() {
+  const practice = englishPracticeState();
+  const item = shadowingSentences[state.activeShadowingIndex];
+  const completedCount = Object.keys(practice.shadowCompleted || {}).length;
+  document.querySelector("#english-shadowing").innerHTML = `
+    <div class="shadow-layout">
+      <aside class="shadow-sequence">
+        <strong>跟读句库</strong>
+        <span>${completedCount} / ${shadowingSentences.length} 句完成</span>
+        ${shadowingSentences.map((sentence, index) => `<button type="button" class="${index === state.activeShadowingIndex ? "is-active" : ""} ${practice.shadowCompleted?.[sentence.id] ? "is-done" : ""}" data-shadow-index="${index}"><span>${String(index + 1).padStart(2, "0")}</span>${escapeHtml(sentence.text)}</button>`).join("")}
+      </aside>
+      <section class="shadow-sheet">
+        <span>LISTEN → SHADOW → RECORD</span>
+        <blockquote>${escapeHtml(item.text)}</blockquote>
+        <p>${escapeHtml(item.translation)}</p>
+        <div class="pronunciation-note"><strong>朗读重点</strong><span>${escapeHtml(item.focus)}</span></div>
+        <div class="shadow-controls"><label>语速<select id="shadow-rate"><option value="0.72">慢速 0.72×</option><option value="0.88" selected>练习 0.88×</option><option value="1">原速 1.0×</option></select></label><button class="button button-primary" id="play-shadow" type="button">播放句子</button><button class="button button-quiet" id="complete-shadow" type="button">完成本轮跟读</button></div>
+        <small>建议使用系统录音机录下最后一遍，自听时只检查重音、停顿和尾音。本站不会调用麦克风。</small>
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-shadow-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeShadowingIndex = Number(button.dataset.shadowIndex);
+      renderEnglishShadowing();
+    });
+  });
+  document.querySelector("#play-shadow").addEventListener("click", () => speakEnglish(item.text, Number(document.querySelector("#shadow-rate").value)));
+  document.querySelector("#complete-shadow").addEventListener("click", async () => {
+    const current = englishPracticeState();
+    await saveSetting({
+      ...current,
+      shadowCompleted: { ...(current.shadowCompleted || {}), [item.id]: new Date().toISOString() },
+      activities: [...(current.activities || []), newEnglishActivity("shadowing", 10, 12, `跟读：${item.text}`)],
+    });
+    state.activeShadowingIndex = (state.activeShadowingIndex + 1) % shadowingSentences.length;
+    renderEnglishStudio();
+    showToast("跟读已记录；请回听自己的最后一遍");
+  });
+}
+
+function currentPaperForEnglish() {
+  return state.dailyPapers[0] || fallbackPapers[0];
+}
+
+function paperEnglishDraftFromForm() {
+  const form = document.querySelector("#paper-english-form");
+  return {
+    question: form.elements.question.value.trim(),
+    method: form.elements.method.value.trim(),
+    result: form.elements.result.value.trim(),
+    limitation: form.elements.limitation.value.trim(),
+    summary: form.elements.summary.value.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function renderPaperEnglish() {
+  const paper = currentPaperForEnglish();
+  const practice = englishPracticeState();
+  const draft = practice.paperDrafts?.[paper.id] || {};
+  document.querySelector("#english-paper").innerHTML = `
+    <div class="paper-english-layout">
+      <article class="paper-source">
+        <span>今日原文</span>
+        <h3>${escapeHtml(paper.title)}</h3>
+        <p>${escapeHtml(paper.summary || "Open the paper and identify its research question, method, result, and limitation.")}</p>
+        <a href="${escapeHtml(paper.url)}" target="_blank" rel="noreferrer">打开论文原文</a>
+        <div class="paper-reading-order"><b>阅读顺序</b><span>标题 → 摘要 → 图表 → 结论 → 方法</span></div>
+      </article>
+      <form class="paper-english-form" id="paper-english-form">
+        <div class="paper-structure-grid">
+          <label>Research question<input name="question" value="${escapeHtml(draft.question || "")}" placeholder="This paper investigates whether…" /></label>
+          <label>Method<input name="method" value="${escapeHtml(draft.method || "")}" placeholder="The authors evaluate…" /></label>
+          <label>Main result<input name="result" value="${escapeHtml(draft.result || "")}" placeholder="The results show that…" /></label>
+          <label>Limitation<input name="limitation" value="${escapeHtml(draft.limitation || "")}" placeholder="One limitation is…" /></label>
+        </div>
+        <label>用自己的话写 80–120 词摘要<textarea name="summary" rows="7" placeholder="Do not translate sentence by sentence. Rebuild the logic in your own words.">${escapeHtml(draft.summary || "")}</textarea></label>
+        <div class="paper-english-actions"><button class="button button-quiet" id="save-paper-english" type="button">保存草稿</button><button class="button button-primary" id="complete-paper-english" type="button">完成本次训练</button><span>${draft.completedAt ? "✓ 已完成过" : "草稿仅存本机"}</span></div>
+      </form>
+    </div>`;
+  document.querySelector("#save-paper-english").addEventListener("click", async () => {
+    const current = englishPracticeState();
+    await saveSetting({ ...current, paperDrafts: { ...(current.paperDrafts || {}), [paper.id]: paperEnglishDraftFromForm() } });
+    showToast("论文英语草稿已保存");
+  });
+  document.querySelector("#complete-paper-english").addEventListener("click", async () => {
+    const nextDraft = paperEnglishDraftFromForm();
+    if (nextDraft.summary.split(/\s+/).filter(Boolean).length < 40) {
+      showToast("先完成至少 40 个英文词，再标记训练完成");
+      return;
+    }
+    const current = englishPracticeState();
+    await saveSetting({
+      ...current,
+      paperDrafts: { ...(current.paperDrafts || {}), [paper.id]: { ...nextDraft, completedAt: new Date().toISOString() } },
+      activities: [...(current.activities || []), newEnglishActivity("paper", 20, 25, `论文英语：${paper.title}`)],
+    });
+    renderEnglishStudio();
+    showToast("论文英语训练已计入今日进度");
+  });
+}
+
+function syncEnglishPanels() {
+  document.querySelectorAll("[data-english-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.englishView === state.englishView));
+  document.querySelectorAll("[data-english-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.englishPanel === state.englishView));
+}
+
+function renderEnglishStudio() {
+  renderEnglishStats();
+  renderEnglishToday();
+  renderEnglishVocabulary();
+  renderEnglishShadowing();
+  renderPaperEnglish();
+  document.querySelectorAll("[data-english-view]").forEach((button) => {
+    button.onclick = () => {
+      state.englishView = button.dataset.englishView;
+      syncEnglishPanels();
+    };
+  });
+  syncEnglishPanels();
+}
+
 function classifyPaper(paper) {
   if (paper.categories?.length) return paper.categories;
   const text = `${paper.title || ""} ${paper.summary || ""}`.toLowerCase();
@@ -576,6 +937,7 @@ async function loadDailyPapers(force = false) {
     state.dailyPapers = cache.items.map((paper) => ({ ...paper, categories: classifyPaper(paper) }));
     state.paperFeedStatus = "今日推荐已就绪 · 在线内容已缓存到本机";
     renderDailyPapers();
+    renderPaperEnglish();
     return;
   }
 
@@ -604,6 +966,7 @@ async function loadDailyPapers(force = false) {
       : "网络暂不可用 · 显示本机基础精选";
   }
   renderDailyPapers();
+  renderPaperEnglish();
 }
 
 function renderDailyPapers() {
@@ -811,6 +1174,7 @@ function renderAll() {
   renderRecentSessions();
   renderRoadmap();
   renderLearningStudio();
+  renderEnglishStudio();
   renderModules();
   renderDailyPapers();
   renderPapers();
