@@ -210,30 +210,75 @@ function todaySessions() {
   return state.sessions.filter((session) => session.date === todayKey());
 }
 
+function dailyGoalMinutes() {
+  const stored = Number(getSetting("daily-learning-goal", { minutes: 360 }).minutes);
+  return Number.isFinite(stored) ? Math.min(720, Math.max(60, Math.round(stored / 30) * 30)) : 360;
+}
+
+function formatGoalHours(minutes) {
+  const hours = minutes / 60;
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
 function renderRuler() {
   const sessions = todaySessions();
   const minutes = sessions.reduce((sum, item) => sum + Number(item.minutes), 0);
   const hours = minutes / 60;
+  const goalMinutes = dailyGoalMinutes();
+  const goalHours = formatGoalHours(goalMinutes);
   document.querySelector("#today-hours").textContent = hours.toFixed(1);
+  document.querySelector("#daily-goal-hours").textContent = goalHours;
+  document.querySelector("#daily-goal-output").textContent = `${goalHours} 小时`;
+  document.querySelector("#daily-goal-range").value = String(goalMinutes);
+  document.querySelectorAll("[data-daily-goal]").forEach((button) => {
+    const active = Number(button.dataset.dailyGoal) === goalMinutes;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 
   const track = document.querySelector("#ruler-track");
+  track.setAttribute("aria-valuenow", String(minutes));
+  track.setAttribute("aria-valuemax", String(goalMinutes));
+  track.setAttribute("aria-valuetext", `今日已学习 ${hours.toFixed(1)} 小时，目标 ${goalHours} 小时`);
+  track.style.setProperty("--ruler-step", `${100 / 6}%`);
   track.innerHTML = sessions
     .map((session) => {
       const module = moduleById(session.moduleId) || modules[0];
-      const width = Math.min((Number(session.minutes) / 360) * 100, 100);
+      const width = Math.min((Number(session.minutes) / goalMinutes) * 100, 100);
       return `<span class="ruler-segment" title="${escapeHtml(module.name)} ${formatMinutes(session.minutes)}" style="width:${width}%;background:${module.color}"></span>`;
     })
     .join("");
 
+  document.querySelector("#ruler-labels").innerHTML = Array.from({ length: 7 }, (_, index) => {
+    const label = formatGoalHours((goalMinutes / 6) * index);
+    return `<span>${index === 0 ? "0" : `${label}h`}</span>`;
+  }).join("");
+
   const status =
     minutes === 0
       ? "从第一个专注块开始。"
-      : minutes < 180
+      : minutes < goalMinutes * 0.5
         ? "已经启动，继续守住深度。"
-        : minutes < 360
+        : minutes < goalMinutes
           ? "过半了，下一块只做一个明确结果。"
-          : "今日标准计划已完成。";
+          : `今日 ${goalHours} 小时目标已完成。`;
   document.querySelector("#day-status").textContent = status;
+}
+
+function setupDailyGoal() {
+  const range = document.querySelector("#daily-goal-range");
+  const updateGoal = async (minutes) => {
+    const normalized = Math.min(720, Math.max(60, Math.round(Number(minutes) / 30) * 30));
+    await saveSetting({ id: "daily-learning-goal", minutes: normalized });
+    renderRuler();
+    showToast(`每日学习目标已调整为 ${formatGoalHours(normalized)} 小时`);
+  };
+  range.addEventListener("input", () => {
+    const hours = formatGoalHours(Number(range.value));
+    document.querySelector("#daily-goal-output").textContent = `${hours} 小时`;
+  });
+  range.addEventListener("change", () => updateGoal(range.value));
+  document.querySelectorAll("[data-daily-goal]").forEach((button) => button.addEventListener("click", () => updateGoal(button.dataset.dailyGoal)));
 }
 
 function renderTasks() {
@@ -2337,6 +2382,7 @@ async function init() {
   await loadState();
   await seedTodayTasks();
   setupNavigation();
+  setupDailyGoal();
   setupDialogs();
   setupPlannerAndFeed();
   setupForms();

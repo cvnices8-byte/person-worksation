@@ -1,13 +1,13 @@
-const CACHE_NAME = "yanxi-workstation-v13";
+const CACHE_NAME = "yanxi-workstation-v14";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./experience.css?v=20260921-13",
+  "./experience.css?v=20260921-14",
   "./experience.js?v=20260921-11",
   "./styles.css?v=20260921-10",
-  "./app.js?v=20260921-13",
-  "./boot.js?v=20260921-13",
-  "./focus-timer.js?v=20260921-13",
+  "./app.js?v=20260921-14",
+  "./boot.js?v=20260921-14",
+  "./focus-timer.js?v=20260921-14",
   "./db.js?v=20260921-10",
   "./data.js?v=20260921-10",
   "./manifest.webmanifest?v=13",

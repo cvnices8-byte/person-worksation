@@ -26,6 +26,19 @@ const { chromium } = require("playwright");
 
   if (!(await page.getByRole("heading", { name: "把今天学扎实。" }).isVisible())) throw new Error("首页标题未显示");
   if ((await page.locator(".task-item").count()) !== 4) throw new Error("初始任务数量不正确");
+  await page.locator("#daily-goal-range").evaluate((element) => {
+    element.value = "270";
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelector("#daily-goal-hours")?.textContent === "4.5");
+  if (!(await page.locator("#ruler-labels").innerText()).includes("4.5h")) throw new Error("可调学习目标未更新刻度");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await page.waitForFunction(() => document.querySelector("#daily-goal-hours")?.textContent === "4.5");
+  await page.locator('[data-daily-goal="480"]').click();
+  await page.waitForFunction(() => document.querySelector("#daily-goal-hours")?.textContent === "8");
+  if ((await page.locator('[data-daily-goal="480"]').getAttribute("aria-pressed")) !== "true") throw new Error("常用学习目标选中状态未更新");
 
   await page.getByRole("button", { name: "安排今天" }).click();
   if ((await page.locator(".planner-row").count()) !== 4) throw new Error("自动排课未生成四个学习块");

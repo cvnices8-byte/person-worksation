@@ -20,6 +20,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .topbar { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
 .topbar h1 { font-size: clamp(30px, 3.4vw, 44px); }
 .panel { border-radius: 12px; box-shadow: var(--shadow); }
+.ruler-goal-control { display: grid; grid-template-columns: auto minmax(150px, 1fr) auto; align-items: center; gap: 12px 18px; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); }
+.ruler-goal-copy { display: grid; gap: 3px; }
+.ruler-goal-copy label { color: var(--ink); font-size: 13px; font-weight: 650; }
+.ruler-goal-copy output { color: var(--muted); font-size: 12px; }
+#daily-goal-range { width: 100%; accent-color: var(--focus-green, #244a42); cursor: pointer; }
+.ruler-goal-presets { display: flex; gap: 5px; }
+.ruler-goal-presets button { min-width: 42px; min-height: 34px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--muted); font-size: 12px; cursor: pointer; }
+.ruler-goal-presets button:hover, .ruler-goal-presets button.is-active { border-color: var(--focus-green, #244a42); background: #edf4ef; color: var(--focus-green, #244a42); }
+.ruler-track { background: repeating-linear-gradient(90deg, transparent 0 calc(var(--ruler-step, 16.666%) - 1px), var(--line) calc(var(--ruler-step, 16.666%) - 1px) var(--ruler-step, 16.666%)); }
 .workspace-switcher { position: sticky; top: 12px; z-index: 10; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px 24px; padding: 16px 20px; margin-bottom: 28px; border: 1px solid #d3ddd5; border-radius: 12px; background: rgba(250, 252, 249, .96); backdrop-filter: blur(16px); box-shadow: 0 8px 24px #2342380a; }
 .workspace-label { font-size: 14px; font-weight: 650; }
 .workspace-label span { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted); }
@@ -56,6 +65,10 @@ dialog[open] { animation: panel-enter 180ms ease-out; border-radius: 12px; }
 @media (max-width: 640px) {
   .main-stage { padding-inline: 16px; padding-bottom: 100px; }
   .workspace-switcher { top: 8px; padding: 12px; gap: 10px; grid-template-columns: 1fr; }
+  .ruler-goal-control { grid-template-columns: 1fr; gap: 10px; }
+  .ruler-goal-copy { grid-template-columns: 1fr auto; align-items: baseline; }
+  .ruler-goal-presets { justify-content: space-between; }
+  .ruler-goal-presets button { flex: 1; min-height: 40px; }
   .workspace-label span { display: inline; margin-left: 10px; }
   .workspace-options { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; }
   .workspace-options button { flex-shrink: 0; padding-inline: 12px; }

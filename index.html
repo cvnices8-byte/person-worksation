@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest?v=13" />
     <link rel="icon" href="./icons/icon.svg?v=13" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=20260921-10" />
-    <link rel="stylesheet" href="./experience.css?v=20260921-13" />
+    <link rel="stylesheet" href="./experience.css?v=20260921-14" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -69,18 +69,27 @@
         </header>
 
         <section class="view is-active" id="view-today" aria-labelledby="view-title">
-          <div class="day-ruler" aria-label="今日六小时学习进度">
+          <div class="day-ruler" aria-label="今日学习进度">
             <div class="ruler-head">
               <div>
                 <span class="ruler-kicker">今日有效学习</span>
-                <strong><span id="today-hours">0.0</span><small> / 6h</small></strong>
+                <strong><span id="today-hours">0.0</span><small> / <span id="daily-goal-hours">6</span>h</small></strong>
               </div>
               <p id="day-status">从第一个专注块开始。</p>
             </div>
-            <div class="ruler-track" id="ruler-track"></div>
-            <div class="ruler-labels" aria-hidden="true">
-              <span>0</span><span>1h</span><span>2h</span><span>3h</span><span>4h</span><span>5h</span><span>6h</span>
+            <div class="ruler-goal-control">
+              <div class="ruler-goal-copy"><label for="daily-goal-range">每日目标</label><output id="daily-goal-output" for="daily-goal-range">6 小时</output></div>
+              <input id="daily-goal-range" type="range" min="60" max="720" step="30" value="360" aria-describedby="daily-goal-help" />
+              <div class="ruler-goal-presets" aria-label="常用学习时长">
+                <button type="button" data-daily-goal="180">3h</button>
+                <button type="button" data-daily-goal="240">4h</button>
+                <button type="button" data-daily-goal="360">6h</button>
+                <button type="button" data-daily-goal="480">8h</button>
+              </div>
+              <span id="daily-goal-help" class="sr-only">可在 1 到 12 小时之间，以半小时为单位调整每日学习目标。</span>
             </div>
+            <div class="ruler-track" id="ruler-track" role="progressbar" aria-valuemin="0" aria-valuenow="0" aria-valuemax="360"></div>
+            <div class="ruler-labels" id="ruler-labels" aria-hidden="true"></div>
           </div>
 
           <div class="today-grid">
@@ -384,6 +393,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./boot.js?v=20260921-13"></script>
+    <script src="./boot.js?v=20260921-14"></script>
   </body>
 </html>
