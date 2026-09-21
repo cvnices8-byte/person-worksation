@@ -10,7 +10,7 @@
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260921-4" />
+    <link rel="stylesheet" href="./styles.css?v=20260921-5" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -167,11 +167,13 @@
             <nav class="english-tabs" aria-label="英语训练台视图">
               <button class="is-active" type="button" data-english-view="today">今日训练</button>
               <button type="button" data-english-view="vocabulary">语境词汇</button>
+              <button type="button" data-english-view="expressions">日常用语</button>
               <button type="button" data-english-view="shadowing">听说跟读</button>
               <button type="button" data-english-view="paper">论文英语</button>
             </nav>
             <div class="english-panel is-active" data-english-panel="today" id="english-today"></div>
             <div class="english-panel" data-english-panel="vocabulary" id="english-vocabulary"></div>
+            <div class="english-panel" data-english-panel="expressions" id="english-expressions"></div>
             <div class="english-panel" data-english-panel="shadowing" id="english-shadowing"></div>
             <div class="english-panel" data-english-panel="paper" id="english-paper"></div>
           </section>
@@ -315,6 +317,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260921-4"></script>
+    <script type="module" src="./app.js?v=20260921-5"></script>
   </body>
 </html>

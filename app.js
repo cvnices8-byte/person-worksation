@@ -1,6 +1,7 @@
-import { db } from "./db.js?v=20260921-4";
+import { db } from "./db.js?v=20260921-5";
 import {
   codingExercises,
+  dailyExpressions,
   dataAiTheory,
   englishQuickLessons,
   englishVocabulary,
@@ -12,7 +13,7 @@ import {
   paperCategories,
   shadowingSentences,
   yearlyPhases,
-} from "./data.js?v=20260921-4";
+} from "./data.js?v=20260921-5";
 
 const state = {
   tasks: [],
@@ -32,6 +33,7 @@ const state = {
   quickLessonScore: 0,
   quickLessonAnswered: null,
   activeShadowingIndex: 0,
+  activeExpressionIndex: 0,
   quickLessonFinished: false,
 };
 
@@ -540,6 +542,8 @@ function englishPracticeState() {
     activities: [],
     paperDrafts: {},
     shadowCompleted: {},
+    expressionDrafts: {},
+    expressionCompleted: {},
   });
 }
 
@@ -634,6 +638,7 @@ function renderQuickLesson() {
   container.innerHTML = `
     <div class="quick-progress"><span>短课 ${state.quickLessonIndex + 1} / ${englishQuickLessons.length}</span><span>答对 ${state.quickLessonScore}</span></div>
     <h3>${escapeHtml(lesson.prompt)}</h3>
+    <p class="quick-translation"><span>中文</span>${escapeHtml(lesson.translation)}</p>
     <div class="quick-options">
       ${lesson.options
         .map((option, index) => {
@@ -642,7 +647,7 @@ function renderQuickLesson() {
         })
         .join("")}
     </div>
-    ${answered !== null ? `<div class="quick-feedback ${answered === lesson.answer ? "is-correct" : "is-wrong"}"><strong>${answered === lesson.answer ? "回答正确" : "需要重看"}</strong><span>${escapeHtml(lesson.explanation)}</span><button class="button button-primary" id="next-quick-lesson" type="button">${state.quickLessonIndex === englishQuickLessons.length - 1 ? "完成短课" : "下一题"}</button></div>` : ""}`;
+    ${answered !== null ? `<div class="quick-feedback ${answered === lesson.answer ? "is-correct" : "is-wrong"}"><strong>${answered === lesson.answer ? "回答正确" : "需要重看"}</strong><span><b>中文语法说明：</b>${escapeHtml(lesson.explanation)}</span><button class="button button-primary" id="next-quick-lesson" type="button">${state.quickLessonIndex === englishQuickLessons.length - 1 ? "完成短课" : "下一题"}</button></div>` : ""}`;
 
   container.querySelectorAll("[data-lesson-answer]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -654,7 +659,7 @@ function renderQuickLesson() {
   document.querySelector("#next-quick-lesson")?.addEventListener("click", async () => {
     if (state.quickLessonIndex === englishQuickLessons.length - 1) {
       state.quickLessonFinished = true;
-      await recordEnglishActivity("quick-lesson", 15, state.quickLessonScore * 4, `专业英语短课 ${state.quickLessonScore}/${englishQuickLessons.length}`);
+      await recordEnglishActivity("quick-lesson", 10, state.quickLessonScore * 4, `语法与表达短课 ${state.quickLessonScore}/${englishQuickLessons.length}`);
       renderEnglishStudio();
       showToast("短课完成，今日英语进度已更新");
     } else {
@@ -669,8 +674,9 @@ function renderEnglishToday() {
   const activities = englishTodayActivities();
   const vocabularyCount = activities.filter((activity) => activity.type === "vocabulary").length;
   const steps = [
-    { type: "quick-lesson", minutes: 15, title: "专业英语短课", detail: "词汇、语法与准确表达", done: activities.some((item) => item.type === "quick-lesson") },
-    { type: "vocabulary", minutes: 15, title: "语境词汇", detail: `主动回忆 10 个词 · 今日 ${vocabularyCount} 个`, done: vocabularyCount >= 10 },
+    { type: "quick-lesson", minutes: 10, title: "语法与表达短课", detail: "英文题干、中文翻译与语法解释", done: activities.some((item) => item.type === "quick-lesson") },
+    { type: "vocabulary", minutes: 10, title: "语境词汇", detail: `主动回忆 10 个词 · 今日 ${vocabularyCount} 个`, done: vocabularyCount >= 10 },
+    { type: "expressions", minutes: 10, title: "日常用语", detail: "听一句、替换结构、说自己的版本", done: activities.some((item) => item.type === "daily-expression") },
     { type: "shadowing", minutes: 10, title: "听说跟读", detail: "听两遍、跟读三遍、录下最后一遍", done: activities.some((item) => item.type === "shadowing") },
     { type: "paper", minutes: 20, title: "论文英语", detail: "拆摘要结构，再用自己的话改写", done: activities.some((item) => item.type === "paper") },
   ];
@@ -758,6 +764,70 @@ function renderEnglishVocabulary() {
       state.vocabularyRevealed = false;
       renderEnglishStudio();
     });
+  });
+}
+
+function renderDailyExpressions() {
+  const practice = englishPracticeState();
+  const item = dailyExpressions[state.activeExpressionIndex];
+  const draft = practice.expressionDrafts?.[item.id] || "";
+  const completedCount = Object.keys(practice.expressionCompleted || {}).length;
+  document.querySelector("#english-expressions").innerHTML = `
+    <div class="expression-layout">
+      <aside class="expression-scenes">
+        <header><strong>沟通场景</strong><span>${completedCount} / ${dailyExpressions.length} 已练</span></header>
+        ${dailyExpressions
+          .map(
+            (expression, index) => `<button type="button" class="${index === state.activeExpressionIndex ? "is-active" : ""} ${practice.expressionCompleted?.[expression.id] ? "is-done" : ""}" data-expression-index="${index}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(expression.scene)}</strong></button>`,
+          )
+          .join("")}
+      </aside>
+      <section class="expression-sheet">
+        <div class="expression-scene-label"><span>场景</span><strong>${escapeHtml(item.scene)}</strong></div>
+        <div class="expression-phrase-row"><blockquote>${escapeHtml(item.phrase)}</blockquote><button class="word-audio" id="play-expression" type="button" aria-label="朗读日常用语">▶</button></div>
+        <p class="expression-translation">${escapeHtml(item.translation)}</p>
+        <div class="expression-guidance">
+          <div><b>什么时候用</b><p>${escapeHtml(item.note)}</p></div>
+          <div><b>可替换结构</b><p>${escapeHtml(item.pattern)}</p></div>
+        </div>
+        <div class="expression-variants"><b>再听两种说法</b>${item.variants.map((variant) => `<button type="button" data-speak-variant="${escapeHtml(variant)}">▶ <span>${escapeHtml(variant)}</span></button>`).join("")}</div>
+        <label class="expression-practice">换成你自己的表达<span>${escapeHtml(item.prompt)}</span><textarea id="expression-draft" rows="3" placeholder="Write your own sentence here…">${escapeHtml(draft)}</textarea></label>
+        <div class="expression-actions"><button class="button button-quiet" id="save-expression" type="button">保存表达</button><button class="button button-primary" id="complete-expression" type="button">完成并练下一句</button><span>${practice.expressionCompleted?.[item.id] ? "✓ 已练习" : "先听，再说出自己的版本"}</span></div>
+      </section>
+    </div>`;
+
+  document.querySelectorAll("[data-expression-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeExpressionIndex = Number(button.dataset.expressionIndex);
+      renderDailyExpressions();
+    });
+  });
+  document.querySelector("#play-expression").addEventListener("click", () => speakEnglish(item.phrase, 0.86));
+  document.querySelectorAll("[data-speak-variant]").forEach((button) => button.addEventListener("click", () => speakEnglish(button.dataset.speakVariant, 0.86)));
+  document.querySelector("#save-expression").addEventListener("click", async () => {
+    const current = englishPracticeState();
+    await saveSetting({
+      ...current,
+      expressionDrafts: { ...(current.expressionDrafts || {}), [item.id]: document.querySelector("#expression-draft").value.trim() },
+    });
+    showToast("自己的表达已保存");
+  });
+  document.querySelector("#complete-expression").addEventListener("click", async () => {
+    const personalSentence = document.querySelector("#expression-draft").value.trim();
+    if (personalSentence.length < 8) {
+      showToast("先写一句自己的英文表达，再完成练习");
+      return;
+    }
+    const current = englishPracticeState();
+    await saveSetting({
+      ...current,
+      expressionDrafts: { ...(current.expressionDrafts || {}), [item.id]: personalSentence },
+      expressionCompleted: { ...(current.expressionCompleted || {}), [item.id]: new Date().toISOString() },
+      activities: [...(current.activities || []), newEnglishActivity("daily-expression", 10, 12, `日常用语：${item.scene}`)],
+    });
+    state.activeExpressionIndex = (state.activeExpressionIndex + 1) % dailyExpressions.length;
+    renderEnglishStudio();
+    showToast("日常用语已完成，进入下一场景");
   });
 }
 
@@ -872,6 +942,7 @@ function renderEnglishStudio() {
   renderEnglishStats();
   renderEnglishToday();
   renderEnglishVocabulary();
+  renderDailyExpressions();
   renderEnglishShadowing();
   renderPaperEnglish();
   document.querySelectorAll("[data-english-view]").forEach((button) => {

@@ -70,13 +70,15 @@ const { chromium } = require("playwright");
   await page.screenshot({ path: path.join(output, "modules.png"), fullPage: true });
 
   if (!(await page.getByRole("heading", { name: "英语训练台" }).isVisible())) throw new Error("英语训练台未显示");
-  if ((await page.locator("[data-english-view]").count()) !== 4) throw new Error("英语训练视图不完整");
+  if ((await page.locator("[data-english-view]").count()) !== 5) throw new Error("英语训练视图不完整");
+  if (!(await page.locator(".quick-translation").innerText()).includes("这一结论")) throw new Error("语法短课中文翻译未显示");
   const quickAnswers = [0, 1, 1, 1, 1];
   for (let index = 0; index < quickAnswers.length; index += 1) {
     await page.locator(`[data-lesson-answer="${quickAnswers[index]}"]`).click();
+    if (index === 0 && !(await page.locator(".quick-feedback").innerText()).includes("中文语法说明")) throw new Error("中文语法说明未显示");
     await page.locator("#next-quick-lesson").click();
   }
-  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("15/60"));
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("10/60"));
   await page.locator('[data-english-view="vocabulary"]').click();
   if (!(await page.getByRole("button", { name: "显示答案" }).isVisible())) throw new Error("词汇回忆卡未显示");
   const dueBefore = Number(await page.locator(".vocabulary-ledger strong").first().innerText());
@@ -84,15 +86,22 @@ const { chromium } = require("playwright");
   if (!(await page.locator(".word-answer").isVisible())) throw new Error("词汇答案未揭示");
   await page.locator('[data-vocab-rating="good"]').click();
   await page.waitForFunction((previous) => Number(document.querySelector(".vocabulary-ledger strong")?.textContent) < previous, dueBefore);
+  await page.locator('[data-english-view="expressions"]').click();
+  if ((await page.locator("[data-expression-index]").count()) !== 12) throw new Error("日常用语场景不完整");
+  if (!(await page.locator(".expression-translation").innerText()).includes("解释一下")) throw new Error("日常用语中文翻译未显示");
+  await page.locator("#expression-draft").fill("Could you clarify what you mean by a reliable model?");
+  await page.getByRole("button", { name: "保存表达" }).click();
+  await page.getByRole("button", { name: "完成并练下一句" }).click();
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("21/60"));
   await page.locator('[data-english-view="shadowing"]').click();
   await page.getByRole("button", { name: "完成本轮跟读" }).click();
-  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("26/60"));
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("31/60"));
   await page.locator('[data-english-view="paper"]').click();
   await page.locator('#paper-english-form input[name="question"]').fill("This paper investigates how a model can learn useful representations from data.");
   await page.locator('#paper-english-form textarea[name="summary"]').fill("This paper studies a practical machine learning problem and proposes a clear modeling approach. The authors evaluate the method on several datasets and compare it with strong baselines. Their results suggest that the proposed design improves performance, although the evidence should be interpreted carefully because the experiments cover only a limited set of tasks and conditions.");
   await page.getByRole("button", { name: "保存草稿" }).click();
   await page.getByRole("button", { name: "完成本次训练" }).click();
-  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("46/60"));
+  await page.waitForFunction(() => document.querySelector("#english-today-stats")?.textContent.includes("51/60"));
   await page.locator('[data-english-view="today"]').click();
   await page.screenshot({ path: path.join(output, "english-studio.png"), fullPage: true });
 
@@ -141,8 +150,8 @@ const { chromium } = require("playwright");
   await mobile.locator('[data-studio-view="code"]').click();
   if (!(await mobile.locator("#code-editor").isVisible())) throw new Error("移动端代码实验台未显示");
   await mobile.screenshot({ path: path.join(output, "mobile-code-lab.png"), fullPage: true });
-  await mobile.locator('[data-english-view="vocabulary"]').click();
-  if (!(await mobile.getByRole("button", { name: "显示答案" }).isVisible())) throw new Error("移动端词汇训练未显示");
+  await mobile.locator('[data-english-view="expressions"]').click();
+  if (!(await mobile.locator("#expression-draft").isVisible())) throw new Error("移动端日常用语训练未显示");
   await mobile.screenshot({ path: path.join(output, "mobile-english.png"), fullPage: true });
 
   if (consoleErrors.length) throw new Error(`Console errors: ${consoleErrors.join(" | ")}`);
