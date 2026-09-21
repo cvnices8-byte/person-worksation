@@ -1,0 +1,64 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
+  try {
+    const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.clock.install();
+    await page.goto(process.env.TEST_URL || 'http://127.0.0.1:4175');
+    await page.locator('.task-item').first().waitFor();
+    await page.locator('#open-focus-timer').click();
+    await page.locator('#focus-task').fill('验证专注计时与学习记录');
+    await page.locator('#focus-module').selectOption('cpa');
+    await page.locator('#toggle-focus').click();
+    await page.clock.fastForward(10000);
+    assert.equal(await page.locator('#focus-time').innerText(), '24:50');
+    await page.locator('#toggle-focus').click();
+    await page.clock.fastForward(60000);
+    assert.equal(await page.locator('#focus-time').innerText(), '24:50', 'Paused timer drifted');
+    await page.reload();
+    await page.locator('.task-item').first().waitFor();
+    await page.locator('#open-focus-timer').click();
+    assert.equal(await page.locator('#focus-time').innerText(), '24:50', 'Reload lost paused timer');
+    await page.locator('#toggle-focus').click();
+    await page.locator('#close-focus').click();
+    assert(await page.locator('.focus-dock').isVisible());
+    await page.locator('[data-view="modules"]').click();
+    await page.locator('[data-workspace="cpa"]').click();
+    await page.clock.fastForward(1490000);
+    await page.locator('.focus-dock').click();
+    assert.equal(await page.locator('#focus-time').innerText(), '00:00');
+    assert((await page.locator('#focus-count').innerText()).includes('1 轮'));
+    await page.locator('#record-focus').click();
+    await page.waitForFunction(() => document.querySelector('#record-focus').textContent === '已记入学习时长');
+    assert(await page.locator('#record-focus').isDisabled());
+    await page.reload();
+    await page.locator('#open-focus-timer').click();
+    assert(await page.locator('#record-focus').isDisabled(), 'Reload allowed duplicate recording');
+    await page.locator('#close-focus').click();
+    await page.locator('[data-view="today"]').click();
+    assert.equal(await page.locator('#today-hours').innerText(), '0.4');
+    assert.equal(await page.locator('#recent-sessions .recent-item').filter({ hasText: '验证专注计时与学习记录' }).count(), 1);
+    await page.locator('#open-focus-timer').click();
+    await page.locator('#toggle-focus').click();
+    assert.equal(await page.locator('#focus-time').innerText(), '05:00');
+    await page.locator('#toggle-focus').click();
+    await page.clock.fastForward(300000);
+    assert(!(await page.locator('#record-focus').isVisible()), 'Rest offered learning credit');
+    await page.locator('#toggle-focus').click();
+    await page.locator('#focus-duration').selectOption('50');
+    assert.equal(await page.locator('#focus-time').innerText(), '50:00');
+    for (const [width, height] of [[1440, 1000], [1024, 768], [768, 1024], [375, 812], [812, 375]]) {
+      await page.setViewportSize({ width, height });
+      assert(!(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)), `Overflow at ${width}`);
+      await page.locator('#toggle-focus').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `/tmp/personal-workstation-tests/focus-${width}.png`, animations: 'disabled' });
+    }
+    await page.locator('#close-focus').click();
+    assert.equal(errors.length, 0, errors.join('\n'));
+    console.log('Focus timer pause, reload, completion, recording, rest and responsive checks passed.');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exit(1); });

@@ -2344,6 +2344,13 @@ async function init() {
   setupPwa();
   renderAll();
   document.querySelector("#startup-status")?.remove();
+  document.addEventListener("learning-session-saved", async () => {
+    state.sessions = await db.getAll("sessions");
+    renderRuler();
+    renderWeekProgress();
+    renderRecentSessions();
+    renderReview();
+  });
   loadDailyPapers();
 }
 

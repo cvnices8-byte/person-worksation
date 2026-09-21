@@ -1,16 +1,17 @@
-const CACHE_NAME = "yanxi-workstation-v12";
+const CACHE_NAME = "yanxi-workstation-v13";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./experience.css?v=20260921-11",
+  "./experience.css?v=20260921-13",
   "./experience.js?v=20260921-11",
   "./styles.css?v=20260921-10",
-  "./app.js?v=20260921-12",
-  "./boot.js?v=20260921-12",
+  "./app.js?v=20260921-13",
+  "./boot.js?v=20260921-13",
+  "./focus-timer.js?v=20260921-13",
   "./db.js?v=20260921-10",
   "./data.js?v=20260921-10",
-  "./manifest.webmanifest",
-  "./icons/icon.svg",
+  "./manifest.webmanifest?v=13",
+  "./icons/icon.svg?v=13",
 ];
 
 self.addEventListener("install", (event) => {

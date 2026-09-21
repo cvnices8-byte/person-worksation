@@ -6,10 +6,10 @@
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7f4",
-  "theme_color": "#152a38",
+  "theme_color": "#244a42",
   "icons": [
     {
-      "src": "./icons/icon.svg",
+      "src": "./icons/icon.svg?v=13",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

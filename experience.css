@@ -1,6 +1,6 @@
 /* Shared reading rhythm and motion for the existing learning workspaces. */
-:root { --blue: #286c60; --paper: #f3f5f2; --shadow: 0 12px 32px rgba(29, 55, 46, .055); }
-body { font-variant-numeric: tabular-nums; }
+:root { --blue: #286c60; --paper: #f6f7f3; --shadow: 0 8px 24px rgba(29, 55, 46, .035); --focus-green: #244a42; --focus-line: #d8e0d8; --focus-muted: #53675d; }
+body { font-variant-numeric: tabular-nums; background: var(--paper); }
 [hidden] { display: none !important; }
 .app-shell, .main-stage { min-height: 100dvh; }
 .main-stage { max-width: 1600px; padding-inline: clamp(20px, 3.3vw, 56px); }
@@ -66,4 +66,67 @@ dialog[open] { animation: panel-enter 180ms ease-out; border-radius: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* Quiet surfaces, consistent custom line icons and one persistent focus tool. */
+.nav-icon, .focus-icon-button svg { width: 22px; height: 22px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+.brand-mark { object-fit: contain; border-radius: 10px; }
+.brand-name { letter-spacing: .04em; }
+.nav-list { gap: 8px; }
+.nav-item { grid-template-columns: 26px 1fr; padding-inline: 12px; }
+.rail { background: #eef1eb; }
+.panel, :is(.learning-studio, .cpa-studio, .civil-studio, .english-studio) { box-shadow: none; }
+:is(.cpa-studio-head, .civil-studio-head, .english-studio-head) { background: #f0f3ed; border-left-color: var(--focus-green); }
+.year-roadmap { background: #e8eee5; color: var(--ink); }
+.year-roadmap :is(p, span, small) { color: var(--focus-muted); }
+.year-roadmap h2 { color: var(--ink); }
+.year-roadmap .phase-step { color: var(--focus-muted); }
+.year-roadmap .phase-step.is-active { color: var(--focus-green); }
+.year-roadmap .phase-number { background: #f6f8f3; color: var(--focus-green); border-color: #8b9e92; }
+.year-roadmap .phase-step.is-active .phase-number { background: var(--focus-green); color: white; border-color: var(--focus-green); }
+.button { min-height: 44px; }
+#open-focus-timer { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-variant-numeric: tabular-nums; }
+.focus-timer { position: fixed; z-index: 40; right: 24px; bottom: 24px; width: 360px; max-width: calc(100vw - 32px); max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--focus-line); border-radius: 20px; background: #fbfcf8; color: var(--ink); box-shadow: 0 18px 65px #1c34242b; }
+.focus-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.focus-eyebrow { font-size: 12px; color: var(--focus-muted); }
+.focus-head h2 { font-family: "Songti SC", "STSong", serif; font-size: 26px; font-weight: 600; margin: 6px 0 0; }
+.focus-icon-button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 50%; background: #eaf0e7; cursor: pointer; }
+.focus-modes { display: flex; gap: 8px; margin-top: 20px; border-bottom: 1px solid var(--focus-line); }
+.focus-modes button { flex: 1; min-height: 44px; padding: 8px 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--focus-muted); cursor: pointer; font-size: 13px; }
+.focus-modes button[aria-pressed="true"] { border-bottom-color: var(--focus-green); color: var(--focus-green); font-weight: 650; }
+.focus-modes button:disabled { opacity: .6; cursor: not-allowed; }
+.focus-clock { position: relative; width: 218px; height: 218px; margin: 12px auto; }
+.focus-clock > svg { width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 3; }
+.focus-track { stroke: #e0e8dd; }
+#focus-arc { stroke: var(--focus-green); stroke-dasharray: 100; stroke-linecap: round; }
+.focus-clock > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+#focus-time { color: var(--focus-green); font-size: 52px; line-height: 1; font-weight: 500; letter-spacing: -.05em; }
+#focus-phase, #focus-count { color: var(--focus-muted); font-size: 12px; }
+.focus-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.focus-fields label { display: grid; gap: 6px; min-width: 0; color: var(--focus-muted); font-size: 12px; }
+.focus-task-label { grid-column: 1 / -1; }
+.focus-fields :is(input, select) { width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--focus-line); border-radius: 7px; background: white; color: var(--ink); font-size: 14px; }
+.focus-fields :disabled { background: #eff2eb; color: #526358; opacity: 1; }
+.focus-controls { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 20px; }
+.focus-controls .button, .focus-record { font-size: 14px; }
+.focus-record { width: 100%; margin-top: 10px; }
+.focus-record:disabled { opacity: .65; }
+#focus-status, #focus-storage-warning { margin: 12px 0 0; font-size: 12px; line-height: 1.6; color: var(--focus-muted); }
+#focus-storage-warning { color: #924328; }
+.focus-dock { position: fixed; z-index: 30; right: 24px; bottom: 24px; min-height: 48px; padding: 12px 20px; border: 1px solid #436559; border-radius: 32px; background: var(--focus-green); color: white; box-shadow: 0 6px 20px #244a4226; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.focus-dock:hover { background: #315c50; }
+@media (max-width: 920px) {
+  .nav-item { grid-template-columns: 1fr; padding-inline: 10px; }
+  .topbar { flex-wrap: wrap; gap: 20px; }
+}
+@media (max-width: 640px) {
+  .nav-item { padding: 6px; gap: 3px; min-height: 48px; width: 58px; }
+  .nav-item > span:last-child { display: block; font-size: 10px; }
+  .rail { height: calc(68px + env(safe-area-inset-bottom)); padding-bottom: calc(7px + env(safe-area-inset-bottom)); }
+  .focus-timer { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); max-height: calc(100dvh - 104px - env(safe-area-inset-bottom)); padding: 20px; }
+  .focus-dock { right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .focus-fields :is(input, select) { font-size: 16px; }
+  .main-stage { padding-bottom: 154px; }
+  .topbar-actions { width: 100%; }
+  .topbar-actions #open-focus-timer { display: inline-flex; margin-right: auto; }
 }
