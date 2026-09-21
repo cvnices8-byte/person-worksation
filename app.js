@@ -1,4 +1,4 @@
-import { db } from "./db.js?v=20260921-9";
+import { db } from "./db.js?v=20260921-10";
 import {
   codingExercises,
   civilModules,
@@ -22,7 +22,7 @@ import {
   shadowingSentences,
   shenlunTypes,
   yearlyPhases,
-} from "./data.js?v=20260921-9";
+} from "./data.js?v=20260921-10";
 
 const state = {
   tasks: [],
@@ -42,6 +42,7 @@ const state = {
   cpaAnswered: null,
   civilView: "today",
   activeCivilModuleId: civilModules[0].id,
+  activeCivilTopicIndex: 1,
   civilQuestionIndex: 0,
   civilAnswered: null,
   civilQuestionStartedAt: Date.now(),
@@ -884,6 +885,16 @@ function currentCivilModule() {
   return civilModules.find((item) => item.id === state.activeCivilModuleId) || civilModules[0];
 }
 
+function initialCivilTopicIndex(module) {
+  const featuredQuestion = civilQuestionBank.find((question) => question.moduleId === module.id);
+  const questionTopicIndex = module.topics.indexOf(featuredQuestion?.topic);
+  return questionTopicIndex >= 0 ? questionTopicIndex : 0;
+}
+
+function civilCoachPrompt(module, topic) {
+  return `你是我的行测专项教练。当前模块：${module.name}；当前知识点：${topic}。\n\n请按以下顺序训练我：\n1. 用通俗中文解释这个知识点的识别信号、核心概念与适用边界；\n2. 基于“${module.methods.join(" → ")}”给出可执行的解题步骤；\n3. 先出一道基础题，只给题目，不给答案；\n4. 等我作答后，判断我错在识别、方法、计算还是时间分配；\n5. 最后给一道变式题，并要求我复述本题的识别信号。\n\n不要虚构真题来源；如果缺少题库材料，请明确说明是原创训练题。`;
+}
+
 function syncCivilPanels() {
   document.querySelectorAll("[data-civil-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.civilView === state.civilView));
   document.querySelectorAll("[data-civil-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.civilPanel === state.civilView));
@@ -934,7 +945,10 @@ function renderCivilToday() {
     renderCivilStudio();
   }));
   document.querySelectorAll("[data-civil-start]").forEach((button) => button.addEventListener("click", () => {
-    if (button.dataset.civilModule) state.activeCivilModuleId = button.dataset.civilModule;
+    if (button.dataset.civilModule) {
+      state.activeCivilModuleId = button.dataset.civilModule;
+      state.activeCivilTopicIndex = initialCivilTopicIndex(currentCivilModule());
+    }
     state.civilView = button.dataset.civilStart;
     state.civilAnswered = null;
     state.civilQuestionStartedAt = Date.now();
@@ -955,11 +969,17 @@ function renderCivilAptitude() {
   if (module.id === "shenlun") {
     state.activeCivilModuleId = civilModules[0].id;
     module = civilModules[0];
+    state.activeCivilTopicIndex = initialCivilTopicIndex(module);
   }
-  const questions = civilQuestionBank.filter((question) => question.moduleId === module.id);
+  if (!module.topics[state.activeCivilTopicIndex]) state.activeCivilTopicIndex = initialCivilTopicIndex(module);
+  const selectedTopic = module.topics[state.activeCivilTopicIndex];
+  const selectedTopicNumber = String(state.activeCivilTopicIndex + 1).padStart(2, "0");
+  const questions = civilQuestionBank.filter((question) => question.moduleId === module.id && question.topic === selectedTopic);
   const question = questions[state.civilQuestionIndex % Math.max(questions.length, 1)];
   const answered = question && state.civilAnswered?.questionId === question.id ? state.civilAnswered.answer : null;
   const completed = module.topics.filter((_, index) => practice.completedTopics?.[`${module.id}:${index}`]).length;
+  const modelStart = state.activeCivilTopicIndex % civilMentalModels.length;
+  const recommendedModels = [0, 1, 2].map((offset) => civilMentalModels[(modelStart + offset) % civilMentalModels.length]);
   document.querySelector("#civil-aptitude").innerHTML = `
     <div class="civil-aptitude-layout">
       <aside class="civil-module-rail">
@@ -974,10 +994,20 @@ function renderCivilAptitude() {
           ${civilMentalModels.map((model) => `<details><summary>${escapeHtml(model.name)}</summary><p>${escapeHtml(model.note)}</p></details>`).join("")}
           <a href="${module.sourceUrl}" target="_blank" rel="noreferrer">打开本模块知识库</a>
         </div>
+        <article class="civil-topic-reader" id="civil-topic-reader">
+          <header><span>专项 ${selectedTopicNumber}</span><h4>${escapeHtml(selectedTopic)}</h4><p>${escapeHtml(module.essence)}</p></header>
+          <div class="civil-topic-levels">
+            <div><b>1</b><span><strong>识别题型</strong><small>看到题干后先确认它属于“${escapeHtml(selectedTopic)}”，圈出条件、问题与干扰信息。</small></span></div>
+            <div><b>2</b><span><strong>执行方法</strong><small>${escapeHtml(module.methods.join(" → "))}</small></span></div>
+            <div><b>3</b><span><strong>限时输出</strong><small>${escapeHtml(module.target)}；做完必须说明依据，并记录单题耗时。</small></span></div>
+          </div>
+          <aside><strong>推荐视角</strong><span>${recommendedModels.map((model) => `${escapeHtml(model.name)}：${escapeHtml(model.note)}`).join("　")}</span></aside>
+          <footer><a class="button button-quiet" href="${module.sourceUrl}" target="_blank" rel="noreferrer">打开知识库</a><button class="button button-quiet" type="button" id="copy-civil-coach">复制 AI 教练提示</button><button class="button button-primary" type="button" id="start-civil-topic-drill" ${question ? "" : "disabled"}>${question ? `练本专项题 · ${questions.length}` : "本专项题库待接入"}</button></footer>
+        </article>
         <div class="civil-topic-grid">
           ${module.topics.map((topic, index) => {
             const key = `${module.id}:${index}`;
-            return `<label class="${practice.completedTopics?.[key] ? "is-done" : ""}"><input type="checkbox" data-civil-topic="${key}" ${practice.completedTopics?.[key] ? "checked" : ""}><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(topic)}</strong></label>`;
+            return `<div class="civil-topic ${practice.completedTopics?.[key] ? "is-done" : ""} ${index === state.activeCivilTopicIndex ? "is-active" : ""}"><label title="标记专项完成"><input type="checkbox" data-civil-topic="${key}" ${practice.completedTopics?.[key] ? "checked" : ""}><span class="sr-only">标记 ${escapeHtml(topic)} 完成</span></label><button type="button" data-civil-open-topic="${index}"><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(topic)}</strong><em>${index === state.activeCivilTopicIndex ? "学习中" : "打开"}</em></button></div>`;
           }).join("")}
         </div>
         ${question ? `<article class="civil-question">
@@ -993,10 +1023,19 @@ function renderCivilAptitude() {
     </div>`;
   document.querySelectorAll("[data-civil-module-id]").forEach((button) => button.addEventListener("click", () => {
     state.activeCivilModuleId = button.dataset.civilModuleId;
+    state.activeCivilTopicIndex = initialCivilTopicIndex(currentCivilModule());
     state.civilQuestionIndex = 0;
     state.civilAnswered = null;
     state.civilQuestionStartedAt = Date.now();
     renderCivilAptitude();
+  }));
+  document.querySelectorAll("[data-civil-open-topic]").forEach((button) => button.addEventListener("click", () => {
+    state.activeCivilTopicIndex = Number(button.dataset.civilOpenTopic);
+    state.civilQuestionIndex = 0;
+    state.civilAnswered = null;
+    state.civilQuestionStartedAt = Date.now();
+    renderCivilAptitude();
+    document.querySelector("#civil-topic-reader")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }));
   document.querySelectorAll("[data-civil-topic]").forEach((checkbox) => checkbox.addEventListener("change", async () => {
     const next = civilPracticeState();
@@ -1004,6 +1043,21 @@ function renderCivilAptitude() {
     renderCivilStudio();
     showToast(checkbox.checked ? "专项已完成" : "专项已重新打开");
   }));
+  document.querySelector("#copy-civil-coach").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(civilCoachPrompt(module, selectedTopic));
+      showToast("行测专项教练提示已复制");
+    } catch {
+      showToast("浏览器未允许剪贴板，请稍后重试");
+    }
+  });
+  document.querySelector("#start-civil-topic-drill").addEventListener("click", () => {
+    if (!question) return;
+    state.civilAnswered = null;
+    state.civilQuestionStartedAt = Date.now();
+    renderCivilAptitude();
+    document.querySelector(".civil-question")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   document.querySelectorAll("[data-civil-answer]").forEach((button) => button.addEventListener("click", async () => {
     const answer = Number(button.dataset.civilAnswer);
     const seconds = Math.max(1, Math.round((Date.now() - state.civilQuestionStartedAt) / 1000));
