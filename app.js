@@ -1,6 +1,9 @@
-import { db } from "./db.js?v=20260921-6";
+import { db } from "./db.js?v=20260921-7";
 import {
   codingExercises,
+  cpaQuestionBank,
+  cpaSubjects,
+  cpaYearPlan,
   dailyExpressions,
   dataAiTheory,
   englishQuickLessons,
@@ -13,7 +16,7 @@ import {
   paperCategories,
   shadowingSentences,
   yearlyPhases,
-} from "./data.js?v=20260921-6";
+} from "./data.js?v=20260921-7";
 
 const state = {
   tasks: [],
@@ -26,6 +29,10 @@ const state = {
   paperCategory: "all",
   studioView: "theory",
   activeExerciseId: codingExercises[0].id,
+  cpaView: "today",
+  activeCpaSubjectId: cpaSubjects[0].id,
+  cpaQuestionIndex: 0,
+  cpaAnswered: null,
   englishView: "today",
   vocabularyRevealed: false,
   activeVocabularyId: englishVocabulary[0].id,
@@ -331,7 +338,7 @@ function renderModules() {
       const completeCount = path.filter((unit) => completed[unit.id]).length;
       const progress = path.length ? Math.round((completeCount / path.length) * 100) : 0;
       return `
-        <article class="module-card ${["data-ai", "english"].includes(module.id) ? "is-priority" : ""}">
+        <article class="module-card ${["data-ai", "cpa", "english"].includes(module.id) ? "is-priority" : ""}">
           <div class="module-card-head">
             <span class="module-code" style="background:${module.color}">${module.short}</span>
             <span>${module.targetHours}h / 周</span>
@@ -536,6 +543,287 @@ function renderLearningStudio() {
     };
   });
   document.querySelectorAll("[data-studio-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.studioPanel === state.studioView));
+}
+
+function cpaPracticeState() {
+  return getSetting("cpa-practice", {
+    id: "cpa-practice",
+    activePhase: cpaYearPlan[0].id,
+    completedChapters: {},
+    activities: [],
+    attempts: [],
+    errors: [],
+  });
+}
+
+function currentCpaSubject() {
+  return cpaSubjects.find((subject) => subject.id === state.activeCpaSubjectId) || cpaSubjects[0];
+}
+
+function cpaActivity(type, minutes, label) {
+  return { id: crypto.randomUUID(), type, minutes, label, subjectId: state.activeCpaSubjectId, date: todayKey(), createdAt: new Date().toISOString() };
+}
+
+function syncCpaPanels() {
+  document.querySelectorAll("[data-cpa-view]").forEach((button) => button.classList.toggle("is-active", button.dataset.cpaView === state.cpaView));
+  document.querySelectorAll("[data-cpa-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.cpaPanel === state.cpaView));
+}
+
+function renderCpaSummary() {
+  const practice = cpaPracticeState();
+  const totalChapters = cpaSubjects.reduce((sum, subject) => sum + subject.chapters.length, 0);
+  const completed = Object.values(practice.completedChapters || {}).filter(Boolean).length;
+  const attempts = practice.attempts || [];
+  const correct = attempts.filter((attempt) => attempt.correct).length;
+  const accuracy = attempts.length ? Math.round((correct / attempts.length) * 100) : 0;
+  document.querySelector("#cpa-summary").innerHTML = `
+    <div><strong>${completed}<small>/${totalChapters}</small></strong><span>章节完成</span></div>
+    <div><strong>${attempts.length}</strong><span>累计作答</span></div>
+    <div><strong>${accuracy}<small>%</small></strong><span>练习正确率</span></div>`;
+}
+
+function renderCpaToday() {
+  const practice = cpaPracticeState();
+  const todayActivities = (practice.activities || []).filter((item) => item.date === todayKey());
+  const todayMinutes = todayActivities.reduce((sum, item) => sum + Number(item.minutes || 0), 0);
+  const phase = cpaYearPlan.find((item) => item.id === practice.activePhase) || cpaYearPlan[0];
+  const subject = currentCpaSubject();
+  const blocks = [
+    { type: "theory", minutes: 35, name: "教材与框架", detail: "先写本章主线，再补定义、条件和例外" },
+    { type: "drill", minutes: 30, name: "题型训练", detail: "先作答，后看解析；记录每个干扰项为什么错" },
+    { type: "errors", minutes: 15, name: "错题回炉", detail: "只处理仍说不清原因的题，不机械重刷" },
+    { type: "recall", minutes: 10, name: "闭卷复述", detail: "用关键词、公式或分录还原本章结构" },
+  ];
+  document.querySelector("#cpa-today").innerHTML = `
+    <div class="cpa-today-grid">
+      <aside class="cpa-year-ledger">
+        <header><span>一年路线</span><strong>${escapeHtml(phase.name)}</strong><p>${escapeHtml(phase.target)}</p></header>
+        ${cpaYearPlan.map((item) => `<button type="button" class="cpa-phase ${item.id === phase.id ? "is-active" : ""}" data-cpa-phase="${item.id}"><span>${escapeHtml(item.weeks)}</span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.focus)}</small></button>`).join("")}
+      </aside>
+      <section class="cpa-daily-sheet">
+        <div class="cpa-daily-head">
+          <div><span>今日答题单</span><h3>${todayMinutes}<small> / 90 分钟</small></h3></div>
+          <label>当前主科<select id="cpa-active-subject">${cpaSubjects.map((item) => `<option value="${item.id}" ${item.id === subject.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+        </div>
+        <div class="cpa-blocks">
+          ${blocks.map((block, index) => {
+            const done = todayActivities.some((item) => item.type === block.type && item.subjectId === subject.id);
+            return `<article class="cpa-block ${done ? "is-done" : ""}"><span>${done ? "✓" : String(index + 1).padStart(2, "0")}</span><div><strong>${escapeHtml(block.name)}</strong><p>${escapeHtml(block.detail)}</p></div><button type="button" data-cpa-block="${block.type}" data-minutes="${block.minutes}" ${done ? "disabled" : ""}>${done ? "已完成" : `${block.minutes}m 完成`}</button></article>`;
+          }).join("")}
+        </div>
+        <footer><strong>完成标准</strong><span>今天必须留下可检查的痕迹：一道错题解释、一组分录/公式，或一段闭卷复述。</span></footer>
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-cpa-phase]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await saveSetting({ ...cpaPracticeState(), activePhase: button.dataset.cpaPhase });
+      renderCpaToday();
+    });
+  });
+  document.querySelector("#cpa-active-subject").addEventListener("change", (event) => {
+    state.activeCpaSubjectId = event.target.value;
+    state.cpaQuestionIndex = 0;
+    state.cpaAnswered = null;
+    renderCpaStudio();
+  });
+  document.querySelectorAll("[data-cpa-block]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const practiceNow = cpaPracticeState();
+      await saveSetting({ ...practiceNow, activities: [...(practiceNow.activities || []), cpaActivity(button.dataset.cpaBlock, Number(button.dataset.minutes), button.closest("article").querySelector("strong").textContent)] });
+      renderCpaStudio();
+      showToast("CPA 学习块已计入今日进度");
+    });
+  });
+}
+
+function renderCpaMap() {
+  const practice = cpaPracticeState();
+  const subject = currentCpaSubject();
+  const completedCount = subject.chapters.filter((_, index) => practice.completedChapters?.[`${subject.id}:${index}`]).length;
+  document.querySelector("#cpa-map").innerHTML = `
+    <div class="cpa-map-layout">
+      <aside class="cpa-subject-index">
+        ${cpaSubjects.map((item) => {
+          const done = item.chapters.filter((_, index) => practice.completedChapters?.[`${item.id}:${index}`]).length;
+          return `<button type="button" class="${item.id === subject.id ? "is-active" : ""}" data-cpa-subject="${item.id}"><b>${item.code}</b><span><strong>${escapeHtml(item.name)}</strong><small>${done} / ${item.chapters.length} 章</small></span></button>`;
+        }).join("")}
+      </aside>
+      <section class="cpa-chapter-sheet">
+        <header><div><span>${escapeHtml(subject.duration)} · 2026 题型参考</span><h3>${escapeHtml(subject.name)}</h3></div><strong>${completedCount}<small> / ${subject.chapters.length}</small></strong></header>
+        <div class="cpa-score-strip">${subject.questionTypes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>
+        <article class="cpa-focus-lesson">
+          <div><span>本周重点讲义</span><h4>${escapeHtml(subject.focusLesson.chapter)}</h4><p>${escapeHtml(subject.focusLesson.essence)}</p></div>
+          <ol>${subject.focusLesson.framework.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>
+          <aside><strong>易错点</strong><span>${escapeHtml(subject.focusLesson.pitfall)}</span></aside>
+        </article>
+        <div class="cpa-chapter-list">
+          ${subject.chapters.map((chapter, index) => {
+            const key = `${subject.id}:${index}`;
+            return `<label class="cpa-chapter ${practice.completedChapters?.[key] ? "is-done" : ""}"><input type="checkbox" data-cpa-chapter="${key}" ${practice.completedChapters?.[key] ? "checked" : ""}><span>${String(index + 1).padStart(2, "0")}</span><strong>${escapeHtml(chapter)}</strong></label>`;
+          }).join("")}
+        </div>
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-cpa-subject]").forEach((button) => button.addEventListener("click", () => {
+    state.activeCpaSubjectId = button.dataset.cpaSubject;
+    state.cpaQuestionIndex = 0;
+    state.cpaAnswered = null;
+    renderCpaStudio();
+  }));
+  document.querySelectorAll("[data-cpa-chapter]").forEach((checkbox) => checkbox.addEventListener("change", async () => {
+    const next = cpaPracticeState();
+    await saveSetting({ ...next, completedChapters: { ...(next.completedChapters || {}), [checkbox.dataset.cpaChapter]: checkbox.checked } });
+    renderCpaStudio();
+    showToast(checkbox.checked ? "章节已归档" : "章节已重新打开");
+  }));
+}
+
+function renderCpaDrill() {
+  const subject = currentCpaSubject();
+  const questions = cpaQuestionBank.filter((question) => question.subjectId === subject.id);
+  const question = questions[state.cpaQuestionIndex % questions.length];
+  const answered = state.cpaAnswered?.questionId === question.id ? state.cpaAnswered.answer : null;
+  document.querySelector("#cpa-drill").innerHTML = `
+    <div class="cpa-drill-layout">
+      <aside class="cpa-drill-subjects">
+        <header><strong>按科训练</strong><span>当前内置 ${cpaQuestionBank.length} 道示范题，题库结构可继续批量扩充。</span></header>
+        ${cpaSubjects.map((item) => `<button type="button" class="${item.id === subject.id ? "is-active" : ""}" data-cpa-drill-subject="${item.id}"><span>${item.code}</span><strong>${escapeHtml(item.name)}</strong><small>${cpaQuestionBank.filter((q) => q.subjectId === item.id).length} 题</small></button>`).join("")}
+      </aside>
+      <section class="cpa-question-sheet">
+        <div class="cpa-question-meta"><span>${escapeHtml(subject.name)} / ${escapeHtml(question.chapter)}</span><span>${escapeHtml(question.type)} · ${escapeHtml(question.difficulty)}</span></div>
+        <h3>${escapeHtml(question.prompt)}</h3>
+        <div class="cpa-options">
+          ${question.options.map((option, index) => {
+            const result = answered === null ? "" : index === question.answer ? "is-correct" : index === answered ? "is-wrong" : "";
+            return `<button type="button" class="${result}" data-cpa-answer="${index}" ${answered !== null ? "disabled" : ""}><span>${String.fromCharCode(65 + index)}</span><strong>${escapeHtml(option)}</strong></button>`;
+          }).join("")}
+        </div>
+        ${answered !== null ? `<div class="cpa-answer-note ${answered === question.answer ? "is-correct" : "is-wrong"}"><header><strong>${answered === question.answer ? "判断正确" : `正确答案 ${String.fromCharCode(65 + question.answer)}`}</strong><span>先说考点，再解释答案</span></header><p>${escapeHtml(question.explanation)}</p><div><button class="button button-primary" type="button" id="next-cpa-question">下一题</button>${answered !== question.answer ? `<label>错因<select id="cpa-error-reason"><option>概念不清</option><option>条件遗漏</option><option>计算错误</option><option>审题错误</option><option>时间不足</option></select></label><button class="button button-quiet" type="button" id="save-cpa-error">记入错题簿</button>` : ""}</div></div>` : ""}
+      </section>
+    </div>`;
+  document.querySelectorAll("[data-cpa-drill-subject]").forEach((button) => button.addEventListener("click", () => {
+    state.activeCpaSubjectId = button.dataset.cpaDrillSubject;
+    state.cpaQuestionIndex = 0;
+    state.cpaAnswered = null;
+    renderCpaStudio();
+  }));
+  document.querySelectorAll("[data-cpa-answer]").forEach((button) => button.addEventListener("click", async () => {
+    const answer = Number(button.dataset.cpaAnswer);
+    state.cpaAnswered = { questionId: question.id, answer };
+    const practice = cpaPracticeState();
+    const attempt = { id: crypto.randomUUID(), questionId: question.id, subjectId: question.subjectId, chapter: question.chapter, answer, correct: answer === question.answer, date: todayKey(), createdAt: new Date().toISOString() };
+    await saveSetting({ ...practice, attempts: [...(practice.attempts || []), attempt] });
+    renderCpaStudio();
+  }));
+  document.querySelector("#next-cpa-question")?.addEventListener("click", () => {
+    state.cpaQuestionIndex = (state.cpaQuestionIndex + 1) % questions.length;
+    state.cpaAnswered = null;
+    renderCpaDrill();
+  });
+  document.querySelector("#save-cpa-error")?.addEventListener("click", async () => {
+    const practice = cpaPracticeState();
+    const alreadySaved = (practice.errors || []).some((item) => item.questionId === question.id && !item.resolved);
+    if (alreadySaved) return showToast("这道题已在待复习错题中");
+    const error = { id: crypto.randomUUID(), questionId: question.id, subjectId: question.subjectId, chapter: question.chapter, prompt: question.prompt, reason: document.querySelector("#cpa-error-reason").value, note: question.explanation, resolved: false, date: todayKey(), createdAt: new Date().toISOString() };
+    await saveSetting({ ...practice, errors: [...(practice.errors || []), error] });
+    renderCpaStudio();
+    showToast("已记入错题簿");
+  });
+}
+
+function renderCpaErrors() {
+  const practice = cpaPracticeState();
+  const errors = [...(practice.errors || [])].reverse();
+  const unresolved = errors.filter((item) => !item.resolved).length;
+  document.querySelector("#cpa-errors").innerHTML = `
+    <div class="cpa-error-layout">
+      <section class="cpa-error-list">
+        <header><div><span>待回炉</span><strong>${unresolved} 道</strong></div><p>重做正确不等于掌握；能说出原错因和新判断规则，才标记为已解决。</p></header>
+        ${errors.length ? errors.map((item) => `<article class="cpa-error ${item.resolved ? "is-resolved" : ""}"><div><span>${escapeHtml(cpaSubjects.find((subject) => subject.id === item.subjectId)?.name || "CPA")} / ${escapeHtml(item.chapter)}</span><strong>${escapeHtml(item.prompt)}</strong><p><b>${escapeHtml(item.reason)}</b>${escapeHtml(item.note || "等待补充复盘说明")}</p></div><button type="button" data-cpa-resolve="${item.id}">${item.resolved ? "重新打开" : "标记已解决"}</button></article>`).join("") : `<div class="cpa-empty"><strong>错题簿还是空的</strong><span>在“题型训练”答错后记录，或在右侧登记外部题目。</span></div>`}
+      </section>
+      <form class="cpa-error-form" id="cpa-error-form">
+        <span>登记教材 / 外部题库错题</span>
+        <label>科目<select name="subjectId">${cpaSubjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.name)}</option>`).join("")}</select></label>
+        <label>章节或考点<input name="chapter" required placeholder="例如：所得税 / 暂时性差异"></label>
+        <label>题目摘要<textarea name="prompt" required rows="3" placeholder="只保留能帮助你再次识别这类题的信息"></textarea></label>
+        <label>主要错因<select name="reason"><option>概念不清</option><option>条件遗漏</option><option>计算错误</option><option>审题错误</option><option>时间不足</option></select></label>
+        <label>下次判断规则<textarea name="note" rows="3" placeholder="看到什么信号，应该使用哪条规则？"></textarea></label>
+        <button class="button button-primary" type="submit">保存错题</button>
+      </form>
+    </div>`;
+  document.querySelectorAll("[data-cpa-resolve]").forEach((button) => button.addEventListener("click", async () => {
+    const next = cpaPracticeState();
+    const updated = (next.errors || []).map((item) => item.id === button.dataset.cpaResolve ? { ...item, resolved: !item.resolved, resolvedAt: !item.resolved ? new Date().toISOString() : null } : item);
+    await saveSetting({ ...next, errors: updated });
+    renderCpaStudio();
+  }));
+  document.querySelector("#cpa-error-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const practiceNow = cpaPracticeState();
+    const error = { id: crypto.randomUUID(), questionId: null, subjectId: data.get("subjectId"), chapter: data.get("chapter"), prompt: data.get("prompt"), reason: data.get("reason"), note: data.get("note"), resolved: false, date: todayKey(), createdAt: new Date().toISOString() };
+    await saveSetting({ ...practiceNow, errors: [...(practiceNow.errors || []), error] });
+    renderCpaStudio();
+    showToast("外部错题已保存");
+  });
+}
+
+function buildCpaTutorPrompt(subject, chapter, mode, level, material) {
+  const modeInstructions = {
+    explain: "按“一句话本质 → 生活化类比 → 正式定义/公式或分录 → 考点定位 → 易混点”讲解，并解释所有术语。",
+    solve: "先让我作答，不要直接给答案；之后指出考点，逐步拆解，并逐项解释每个错误选项的陷阱。",
+    practice: "按 CPA 真实题型生成 3 道由浅入深的练习。先只出题，等我回答后再逐题评分与解析。",
+    review: "根据材料诊断我的错因属于概念、条件、计算、审题还是时间问题，并给出最小复习任务和一道变式题。",
+  };
+  const levels = { 1: "能力等级 1：理解概念与基本原理", 2: "能力等级 2：在简单职业情境中应用", 3: "能力等级 3：在复杂情境中综合运用" };
+  return `你是我的中国 CPA 私人辅导老师。\n科目：${subject.name}\n章节/考点：${chapter}\n目标：${levels[level]}\n任务：${modeInstructions[mode]}\n\n要求：中文为主，关键专业术语附英文；区分当前规则、通用原理与可能变化的年度口径；不确定时明确说明并提醒核对中注协最新资料。\n${material ? `\n我的教材、题目或作答：\n${material}` : ""}`;
+}
+
+function renderCpaTutor() {
+  const subject = currentCpaSubject();
+  document.querySelector("#cpa-tutor").innerHTML = `
+    <div class="cpa-tutor-layout">
+      <section class="cpa-tutor-builder">
+        <header><span>AI 辅导提示生成器</span><h3>让 AI 按考点讲，不让它泛泛作答。</h3><p>结构参考 CPA-Skill：零基础四步讲解、真实题型、先答后析与错因诊断。</p></header>
+        <div class="cpa-tutor-fields">
+          <label>科目<select id="cpa-tutor-subject">${cpaSubjects.map((item) => `<option value="${item.id}" ${item.id === subject.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></label>
+          <label>章节 / 考点<select id="cpa-tutor-chapter">${subject.chapters.map((chapter) => `<option>${escapeHtml(chapter)}</option>`).join("")}</select></label>
+          <label>辅导模式<select id="cpa-tutor-mode"><option value="explain">从零讲懂</option><option value="solve">拆解一道题</option><option value="practice">生成同考点练习</option><option value="review">诊断错题</option></select></label>
+          <label>能力等级<select id="cpa-tutor-level"><option value="1">1 · 知识理解</option><option value="2">2 · 基本应用</option><option value="3">3 · 综合运用</option></select></label>
+        </div>
+        <label>粘贴教材、题目或你的作答（可选）<textarea id="cpa-tutor-material" rows="6" placeholder="资料只在当前浏览器中处理；生成提示后复制到你使用的 AI。"></textarea></label>
+        <button class="button button-primary" type="button" id="generate-cpa-prompt">生成辅导提示</button>
+      </section>
+      <section class="cpa-tutor-output"><span>可复制提示</span><textarea id="cpa-tutor-output" rows="17" readonly>${escapeHtml(buildCpaTutorPrompt(subject, subject.chapters[0], "explain", "1", ""))}</textarea><button class="button button-quiet" type="button" id="copy-cpa-prompt">复制提示</button><p>提示词负责约束讲解流程；具体教材口径仍以你提供的资料和中注协最新公告为准。</p><div class="cpa-source-links"><a href="https://www.cicpa.org.cn/ztzl1/exam/exam_outline/" target="_blank" rel="noreferrer">中注协考试大纲</a><a href="https://github.com/CacinieP/CICPA-Learning" target="_blank" rel="noreferrer">CICPA-Learning</a><a href="https://github.com/yjkj999999/cpa-china-2026" target="_blank" rel="noreferrer">cpa-china-2026</a><a href="https://github.com/lyra81604/CPA-Skill" target="_blank" rel="noreferrer">CPA-Skill</a></div></section>
+    </div>`;
+  document.querySelector("#cpa-tutor-subject").addEventListener("change", (event) => {
+    state.activeCpaSubjectId = event.target.value;
+    renderCpaTutor();
+  });
+  document.querySelector("#generate-cpa-prompt").addEventListener("click", () => {
+    const selectedSubject = cpaSubjects.find((item) => item.id === document.querySelector("#cpa-tutor-subject").value);
+    document.querySelector("#cpa-tutor-output").value = buildCpaTutorPrompt(selectedSubject, document.querySelector("#cpa-tutor-chapter").value, document.querySelector("#cpa-tutor-mode").value, document.querySelector("#cpa-tutor-level").value, document.querySelector("#cpa-tutor-material").value.trim());
+  });
+  document.querySelector("#copy-cpa-prompt").addEventListener("click", async () => {
+    await navigator.clipboard.writeText(document.querySelector("#cpa-tutor-output").value);
+    showToast("CPA 辅导提示已复制");
+  });
+}
+
+function renderCpaStudio() {
+  renderCpaSummary();
+  renderCpaToday();
+  renderCpaMap();
+  renderCpaDrill();
+  renderCpaErrors();
+  renderCpaTutor();
+  document.querySelectorAll("[data-cpa-view]").forEach((button) => {
+    button.onclick = () => {
+      state.cpaView = button.dataset.cpaView;
+      syncCpaPanels();
+    };
+  });
+  syncCpaPanels();
 }
 
 function englishPracticeState() {
@@ -1434,6 +1722,7 @@ function renderAll() {
   renderRecentSessions();
   renderRoadmap();
   renderLearningStudio();
+  renderCpaStudio();
   renderEnglishStudio();
   renderModules();
   renderDailyPapers();

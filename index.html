@@ -10,7 +10,7 @@
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260921-6" />
+    <link rel="stylesheet" href="./styles.css?v=20260921-7" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -153,6 +153,32 @@
                 <section class="exercise-workspace" id="exercise-workspace"></section>
               </div>
             </div>
+          </section>
+
+          <section class="cpa-studio" aria-labelledby="cpa-studio-title">
+            <header class="cpa-studio-head">
+              <div class="cpa-studio-title">
+                <span class="cpa-seal" aria-hidden="true">CPA</span>
+                <div>
+                  <p>未来 52 周备考底稿</p>
+                  <h2 id="cpa-studio-title">CPA 学习工作台</h2>
+                  <span>教材建立结构，练题暴露问题，错题决定下一轮复习。</span>
+                </div>
+              </div>
+              <div class="cpa-summary" id="cpa-summary"></div>
+            </header>
+            <nav class="cpa-tabs" aria-label="CPA 学习工作台视图">
+              <button class="is-active" type="button" data-cpa-view="today">今日推进</button>
+              <button type="button" data-cpa-view="map">六科地图</button>
+              <button type="button" data-cpa-view="drill">题型训练</button>
+              <button type="button" data-cpa-view="errors">错题簿</button>
+              <button type="button" data-cpa-view="tutor">AI 辅导</button>
+            </nav>
+            <div class="cpa-panel is-active" data-cpa-panel="today" id="cpa-today"></div>
+            <div class="cpa-panel" data-cpa-panel="map" id="cpa-map"></div>
+            <div class="cpa-panel" data-cpa-panel="drill" id="cpa-drill"></div>
+            <div class="cpa-panel" data-cpa-panel="errors" id="cpa-errors"></div>
+            <div class="cpa-panel" data-cpa-panel="tutor" id="cpa-tutor"></div>
           </section>
 
           <section class="english-studio" aria-labelledby="english-studio-title">
@@ -317,6 +343,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260921-6"></script>
+    <script type="module" src="./app.js?v=20260921-7"></script>
   </body>
 </html>
