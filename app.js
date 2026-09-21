@@ -1,5 +1,15 @@
-import { db } from "./db.js?v=20260920-2";
-import { fallbackPapers, learningPaths, moduleById, modules, yearlyPhases } from "./data.js?v=20260920-2";
+import { db } from "./db.js?v=20260920-3";
+import {
+  codingExercises,
+  dataAiTheory,
+  fallbackPapers,
+  learningPaths,
+  learningResources,
+  moduleById,
+  modules,
+  paperCategories,
+  yearlyPhases,
+} from "./data.js?v=20260920-3";
 
 const state = {
   tasks: [],
@@ -9,6 +19,9 @@ const state = {
   settings: [],
   dailyPapers: [],
   paperFeedStatus: "正在获取最新论文…",
+  paperCategory: "all",
+  studioView: "theory",
+  activeExerciseId: codingExercises[0].id,
 };
 
 let plannerDraft = [];
@@ -347,11 +360,183 @@ function renderModules() {
   });
 }
 
+function codingPracticeState() {
+  return getSetting("coding-practice", {
+    id: "coding-practice",
+    drafts: {},
+    completed: {},
+  });
+}
+
+function renderTheoryStudio() {
+  const completedUnits = learningPlan().completedUnits || {};
+  document.querySelector("#data-ai-theory").innerHTML = `
+    <div class="theory-preface">
+      <strong>建议顺序</strong>
+      <span>阶段 01–03 构成数据科学底座；04–05 建模；06 将能力组合成可评测的 AI 系统。每周 14 小时建议分为理论 4h、课程 4h、编码 5h、复盘 1h。</span>
+    </div>
+    <div class="theory-sequence">
+      ${dataAiTheory
+        .map(
+          (stage) => `
+            <article class="theory-stage ${completedUnits[stage.id] ? "is-complete" : ""}">
+              <div class="theory-stage-index"><span>${stage.index}</span><small>${escapeHtml(stage.duration)}</small></div>
+              <div class="theory-stage-body">
+                <p>${escapeHtml(stage.question)}</p>
+                <h3>${escapeHtml(stage.title)}</h3>
+                <ul>${stage.theory.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+                <div class="theory-evidence"><b>阶段证据</b><span>${escapeHtml(stage.practice)}</span></div>
+              </div>
+            </article>`,
+        )
+        .join("")}
+    </div>`;
+}
+
+function renderLearningResources() {
+  const stages = dataAiTheory.filter((stage) => learningResources.some((resource) => resource.stageId === stage.id));
+  document.querySelector("#learning-resources").innerHTML = `
+    <div class="resource-note"><strong>资源使用规则</strong><span>每阶段只选一门主课；链接用于学习，真正的完成标准是右侧写出的练习或作品。</span></div>
+    <div class="resource-ledger">
+      ${stages
+        .map(
+          (stage) => `
+            <section class="resource-group">
+              <div class="resource-stage"><span>${stage.index}</span><strong>${escapeHtml(stage.title)}</strong></div>
+              <div class="resource-rows">
+                ${learningResources
+                  .filter((resource) => resource.stageId === stage.id)
+                  .map(
+                    (resource) => `
+                      <a class="resource-row" href="${escapeHtml(resource.url)}" target="_blank" rel="noreferrer">
+                        <span class="resource-type">${escapeHtml(resource.type)}</span>
+                        <span><strong>${escapeHtml(resource.title)}</strong><small>${escapeHtml(resource.provider)}</small></span>
+                        <p>${escapeHtml(resource.note)}</p>
+                        <b aria-hidden="true">↗</b>
+                      </a>`,
+                  )
+                  .join("")}
+              </div>
+            </section>`,
+        )
+        .join("")}
+    </div>`;
+}
+
+function coachPrompt(exercise, code) {
+  return `你是我的 Python 与 AI 编程教练。请用苏格拉底式提问和逐步提示帮助我完成练习，不要直接给出完整答案。\n\n练习：${exercise.title}\n目标：${exercise.goal}\n验收条件：\n- ${exercise.checks.join("\n- ")}\n\n我的当前代码：\n\`\`\`python\n${code}\n\`\`\`\n\n请先指出最关键的一个问题，再给一个最小提示和一个我可以自己运行的测试。`;
+}
+
+function renderExerciseWorkspace() {
+  const workspace = document.querySelector("#exercise-workspace");
+  const practice = codingPracticeState();
+  const exercise = codingExercises.find((item) => item.id === state.activeExerciseId) || codingExercises[0];
+  const draft = practice.drafts?.[exercise.id] ?? exercise.starterCode;
+  const completed = Boolean(practice.completed?.[exercise.id]);
+  workspace.innerHTML = `
+    <header class="exercise-brief">
+      <div class="exercise-labels"><span>${exercise.domain === "ai" ? "AI LAB" : "DATA LAB"}</span><span>${escapeHtml(exercise.difficulty)}</span><span>${exercise.minutes} min</span></div>
+      <h3>${escapeHtml(exercise.title)}</h3>
+      <p>${escapeHtml(exercise.brief)}</p>
+    </header>
+    <div class="exercise-spec">
+      <div><b>任务</b><p>${escapeHtml(exercise.goal)}</p></div>
+      <div><b>完成检查</b><ul>${exercise.checks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+    </div>
+    <label class="code-editor-label" for="code-editor"><span>practice.py</span><small>草稿保存在当前浏览器</small></label>
+    <textarea id="code-editor" class="code-editor" spellcheck="false" aria-label="Python 代码编辑器">${escapeHtml(draft)}</textarea>
+    <div class="code-actions">
+      <button class="button button-primary" id="save-code-draft" type="button">保存草稿</button>
+      <button class="button button-quiet" id="copy-coach-prompt" type="button">复制 AI 教练提示</button>
+      <button class="button button-quiet" id="download-code" type="button">下载 .py</button>
+      <button class="exercise-complete ${completed ? "is-complete" : ""}" id="toggle-exercise" type="button">${completed ? "✓ 已完成" : "标记完成"}</button>
+    </div>`;
+
+  document.querySelector("#save-code-draft").addEventListener("click", async () => {
+    const current = codingPracticeState();
+    await saveSetting({ ...current, drafts: { ...(current.drafts || {}), [exercise.id]: document.querySelector("#code-editor").value } });
+    showToast("代码草稿已保存到本机");
+  });
+  document.querySelector("#copy-coach-prompt").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(coachPrompt(exercise, document.querySelector("#code-editor").value));
+      showToast("AI 教练提示已复制");
+    } catch {
+      showToast("浏览器未允许剪贴板，请先保存代码");
+    }
+  });
+  document.querySelector("#download-code").addEventListener("click", () => {
+    downloadFile(`${exercise.id}.py`, document.querySelector("#code-editor").value, "text/x-python;charset=utf-8");
+  });
+  document.querySelector("#toggle-exercise").addEventListener("click", async () => {
+    const current = codingPracticeState();
+    const nextCompleted = { ...(current.completed || {}) };
+    if (nextCompleted[exercise.id]) delete nextCompleted[exercise.id];
+    else nextCompleted[exercise.id] = new Date().toISOString();
+    await saveSetting({
+      ...current,
+      drafts: { ...(current.drafts || {}), [exercise.id]: document.querySelector("#code-editor").value },
+      completed: nextCompleted,
+    });
+    renderCodeLab();
+    showToast(nextCompleted[exercise.id] ? "练习已计入进度" : "练习已重新打开");
+  });
+}
+
+function renderCodeLab() {
+  const practice = codingPracticeState();
+  const completed = practice.completed || {};
+  const completeCount = codingExercises.filter((exercise) => completed[exercise.id]).length;
+  document.querySelector("#exercise-list").innerHTML = `
+    <div class="exercise-index-head"><span>练习进度</span><strong>${completeCount} / ${codingExercises.length}</strong></div>
+    ${codingExercises
+      .map(
+        (exercise, index) => `
+          <button class="exercise-link ${exercise.id === state.activeExerciseId ? "is-active" : ""} ${completed[exercise.id] ? "is-complete" : ""}" type="button" data-exercise-id="${exercise.id}">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <span><strong>${escapeHtml(exercise.title)}</strong><small>${exercise.domain === "ai" ? "AI 编程" : "数据科学"} · ${escapeHtml(exercise.difficulty)}</small></span>
+          </button>`,
+      )
+      .join("")}`;
+  document.querySelectorAll("[data-exercise-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeExerciseId = button.dataset.exerciseId;
+      renderCodeLab();
+    });
+  });
+  renderExerciseWorkspace();
+}
+
+function renderLearningStudio() {
+  renderTheoryStudio();
+  renderLearningResources();
+  renderCodeLab();
+  document.querySelectorAll("[data-studio-view]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.studioView === state.studioView);
+    button.onclick = () => {
+      state.studioView = button.dataset.studioView;
+      document.querySelectorAll("[data-studio-view]").forEach((item) => item.classList.toggle("is-active", item === button));
+      document.querySelectorAll("[data-studio-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.studioPanel === state.studioView));
+    };
+  });
+  document.querySelectorAll("[data-studio-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.studioPanel === state.studioView));
+}
+
+function classifyPaper(paper) {
+  if (paper.categories?.length) return paper.categories;
+  const text = `${paper.title || ""} ${paper.summary || ""}`.toLowerCase();
+  const categories = [];
+  if (["finance", "financial", "accounting", "market", "portfolio", "asset", "stock", "trading", "credit risk", "fintech"].some((word) => text.includes(word))) categories.push("finance");
+  if (["data", "machine learning", "statistical", "regression", "forecast", "causal", "tabular", "dataset", "time series", "classification"].some((word) => text.includes(word))) categories.push("data");
+  if (["artificial intelligence", "language model", "llm", "agent", "transformer", "neural", "reasoning", "vision", "diffusion", "reinforcement", "multimodal", "retrieval"].some((word) => text.includes(word))) categories.push("ai");
+  return categories.length ? [...new Set(categories)] : ["ai"];
+}
+
 function normalizeDailyPaper(entry) {
   const paper = entry.paper || entry;
   const id = paper.id || entry.id;
   if (!id || !paper.title) return null;
-  return {
+  const normalized = {
     id,
     title: paper.title,
     summary: paper.summary || entry.summary || "",
@@ -364,6 +549,7 @@ function normalizeDailyPaper(entry) {
     url: `https://huggingface.co/papers/${id}`,
     source: "Hugging Face Daily Papers",
   };
+  return { ...normalized, categories: classifyPaper(normalized) };
 }
 
 function isRelevantPaper(paper) {
@@ -387,7 +573,7 @@ function isRelevantPaper(paper) {
 async function loadDailyPapers(force = false) {
   const cache = getSetting("daily-paper-feed", null);
   if (!force && cache?.date === todayKey() && cache.items?.length) {
-    state.dailyPapers = cache.items;
+    state.dailyPapers = cache.items.map((paper) => ({ ...paper, categories: classifyPaper(paper) }));
     state.paperFeedStatus = "今日推荐已就绪 · 在线内容已缓存到本机";
     renderDailyPapers();
     return;
@@ -403,14 +589,16 @@ async function loadDailyPapers(force = false) {
     const payload = await response.json();
     const normalized = payload.map(normalizeDailyPaper).filter(Boolean);
     const relevant = normalized.filter(isRelevantPaper);
-    state.dailyPapers = (relevant.length >= 4 ? relevant : normalized).slice(0, 6);
+    const candidates = relevant.length >= 4 ? relevant : normalized;
+    const merged = [...candidates.slice(0, 16), ...fallbackPapers];
+    state.dailyPapers = [...new Map(merged.map((paper) => [paper.id, { ...paper, categories: classifyPaper(paper) }])).values()];
     state.paperFeedStatus = "今日已更新 · 来源 Hugging Face Daily Papers";
     await saveSetting({ id: "daily-paper-feed", date: todayKey(), items: state.dailyPapers });
   } catch (error) {
     console.warn("Daily paper feed unavailable; using local selection.", error);
-    const previous = cache?.items?.length ? cache.items : fallbackPapers;
+    const previous = (cache?.items?.length ? cache.items : fallbackPapers).map((paper) => ({ ...paper, categories: classifyPaper(paper) }));
     const offset = Number(todayKey().replaceAll("-", "")) % previous.length;
-    state.dailyPapers = [...previous.slice(offset), ...previous.slice(0, offset)].slice(0, 5);
+    state.dailyPapers = [...previous.slice(offset), ...previous.slice(0, offset)];
     state.paperFeedStatus = cache?.items?.length
       ? "网络暂不可用 · 显示最近一次缓存"
       : "网络暂不可用 · 显示本机基础精选";
@@ -421,19 +609,43 @@ async function loadDailyPapers(force = false) {
 function renderDailyPapers() {
   const status = document.querySelector("#paper-feed-status");
   const container = document.querySelector("#daily-paper-list");
-  if (!status || !container) return;
+  const filters = document.querySelector("#paper-category-filters");
+  if (!status || !container || !filters) return;
   status.textContent = state.paperFeedStatus;
+  filters.innerHTML = paperCategories
+    .map((category) => `<button class="paper-filter ${category.id === state.paperCategory ? "is-active" : ""}" type="button" data-paper-category="${category.id}">${escapeHtml(category.name)}</button>`)
+    .join("");
+  filters.querySelectorAll("[data-paper-category]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.paperCategory = button.dataset.paperCategory;
+      renderDailyPapers();
+    });
+  });
   if (!state.dailyPapers.length) {
     container.innerHTML = '<div class="empty-state">正在整理今天的论文推荐。</div>';
     return;
   }
 
   const readPapers = getSetting("read-papers", { items: {} }).items || {};
-  container.innerHTML = state.dailyPapers
+  let visiblePapers;
+  if (state.paperCategory === "all") {
+    const lead = ["data", "ai", "finance"]
+      .map((category) => state.dailyPapers.find((paper) => classifyPaper(paper).includes(category)))
+      .filter(Boolean);
+    visiblePapers = [...new Map([...lead, ...state.dailyPapers].map((paper) => [paper.id, paper])).values()].slice(0, 6);
+  } else {
+    visiblePapers = state.dailyPapers.filter((paper) => classifyPaper(paper).includes(state.paperCategory)).slice(0, 6);
+  }
+  if (!visiblePapers.length) {
+    container.innerHTML = '<div class="empty-state">这个领域今天没有匹配内容，可以刷新推荐或查看全部。</div>';
+    return;
+  }
+  container.innerHTML = visiblePapers
     .map(
       (paper, index) => `
         <article class="daily-paper ${index === 0 ? "is-featured" : ""} ${readPapers[paper.id] ? "is-read" : ""}">
           <div class="paper-rank">${index === 0 ? "今日必读" : `备选 ${index}`}</div>
+          <div class="paper-tags">${classifyPaper(paper).map((category) => `<span>${escapeHtml(paperCategories.find((item) => item.id === category)?.name || category)}</span>`).join("")}</div>
           <h3>${escapeHtml(paper.title)}</h3>
           <p>${escapeHtml(paper.summary || "打开原文，通过摘要判断它是否值得继续阅读。")}</p>
           <div class="paper-meta">
@@ -452,7 +664,7 @@ function renderDailyPapers() {
 
   container.querySelectorAll("[data-start-paper]").forEach((button) => {
     button.addEventListener("click", () => {
-      const paper = state.dailyPapers.find((item) => item.id === button.dataset.startPaper);
+      const paper = visiblePapers.find((item) => item.id === button.dataset.startPaper);
       if (!paper) return;
       const form = document.querySelector("#paper-form");
       form.elements.title.value = paper.title;
@@ -598,6 +810,7 @@ function renderAll() {
   renderWeekProgress();
   renderRecentSessions();
   renderRoadmap();
+  renderLearningStudio();
   renderModules();
   renderDailyPapers();
   renderPapers();

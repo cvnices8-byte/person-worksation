@@ -10,7 +10,7 @@
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20260920-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260920-3" />
     <title>研习台 · Personal Workstation</title>
   </head>
   <body>
@@ -131,6 +131,30 @@
             </div>
             <div class="phase-track" id="phase-track"></div>
           </section>
+
+          <section class="learning-studio" aria-labelledby="learning-studio-title">
+            <header class="studio-head">
+              <div>
+                <p>DATA × AI / LEARNING STUDIO</p>
+                <h2 id="learning-studio-title">数据与 AI 学习台</h2>
+                <span>先建立可解释的理论结构，再用官方课程补充，最后以代码和项目证明掌握。</span>
+              </div>
+              <nav class="studio-tabs" aria-label="数据与 AI 学习台视图">
+                <button class="is-active" type="button" data-studio-view="theory">理论主线</button>
+                <button type="button" data-studio-view="resources">课程资源</button>
+                <button type="button" data-studio-view="code">代码实验</button>
+              </nav>
+            </header>
+            <div class="studio-panel is-active" data-studio-panel="theory" id="data-ai-theory"></div>
+            <div class="studio-panel" data-studio-panel="resources" id="learning-resources"></div>
+            <div class="studio-panel" data-studio-panel="code">
+              <div class="code-lab">
+                <aside class="exercise-index" id="exercise-list" aria-label="代码练习列表"></aside>
+                <section class="exercise-workspace" id="exercise-workspace"></section>
+              </div>
+            </div>
+          </section>
+
           <div class="module-board" id="module-board"></div>
         </section>
 
@@ -149,6 +173,7 @@
                 </div>
                 <button class="text-button" id="refresh-paper-feed" type="button">刷新推荐</button>
               </div>
+              <div class="paper-category-filters" id="paper-category-filters" aria-label="论文领域筛选"></div>
               <p class="feed-status" id="paper-feed-status">正在获取最新论文…</p>
               <div class="daily-paper-list" id="daily-paper-list"></div>
             </section>
@@ -269,6 +294,6 @@
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script type="module" src="./app.js?v=20260920-2"></script>
+    <script type="module" src="./app.js?v=20260920-3"></script>
   </body>
 </html>

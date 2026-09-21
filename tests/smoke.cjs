@@ -52,12 +52,30 @@ const { chromium } = require("playwright");
   await page.waitForFunction(() =>
     [...document.querySelectorAll(".module-card")].some((card) => card.textContent.includes("数据科学与 AI") && card.textContent.includes("1 / 6 个阶段完成")),
   );
+  if ((await page.locator(".theory-stage").count()) !== 6) throw new Error("理论学习主线不完整");
+  await page.locator('[data-studio-view="resources"]').click();
+  if ((await page.locator(".resource-row").count()) < 10) throw new Error("官方课程资源不完整");
+  if (!(await page.getByRole("link", { name: /Machine Learning in Python with scikit-learn/ }).isVisible())) throw new Error("机器学习主课未显示");
+  await page.locator('[data-studio-view="code"]').click();
+  if ((await page.locator(".exercise-link").count()) !== 8) throw new Error("代码练习数量不正确");
+  await page.locator('[data-exercise-id="agent-state-machine"]').click();
+  await page.locator("#code-editor").fill("def agent_loop():\n    return 'draft'\n");
+  await page.getByRole("button", { name: "保存草稿" }).click();
+  await page.getByRole("button", { name: "标记完成" }).click();
+  await page.waitForFunction(() => document.querySelector("#toggle-exercise")?.textContent.includes("已完成"));
+  if (!(await page.locator("#toggle-exercise").innerText()).includes("已完成")) throw new Error("代码练习完成状态未更新");
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.screenshot({ path: path.join(output, "code-lab.png"), fullPage: true });
+  await page.locator('[data-studio-view="theory"]').click();
   await page.screenshot({ path: path.join(output, "modules.png"), fullPage: true });
 
   await page.locator('[data-view="papers"]').click();
   await page.waitForFunction(() => document.querySelectorAll(".daily-paper").length >= 4);
   if (!(await page.locator("#paper-feed-status").innerText()).includes("本机基础精选")) throw new Error("离线论文推荐未启用");
+  if ((await page.locator(".paper-filter").count()) !== 4) throw new Error("论文领域筛选不完整");
+  await page.getByRole("button", { name: "财务", exact: true }).click();
+  if ((await page.locator(".daily-paper").count()) < 3) throw new Error("财务论文精选不足");
+  if (!(await page.locator(".daily-paper").first().innerText()).match(/FinBERT|BloombergGPT|FinGPT|Finance/)) throw new Error("财务论文筛选失败");
   await page.locator("[data-start-paper]").first().click();
   if (!(await page.locator("#paper-form input[name=title]").inputValue())) throw new Error("论文推荐未加入精读台");
   await page.screenshot({ path: path.join(output, "paper-feed.png"), fullPage: true });
@@ -92,6 +110,10 @@ const { chromium } = require("playwright");
   await mobile.waitForLoadState("networkidle");
   if (!(await mobile.getByRole("heading", { name: "把今天学扎实。" }).isVisible())) throw new Error("移动端首页未显示");
   await mobile.screenshot({ path: path.join(output, "mobile.png"), fullPage: true });
+  await mobile.locator('[data-view="modules"]').click();
+  await mobile.locator('[data-studio-view="code"]').click();
+  if (!(await mobile.locator("#code-editor").isVisible())) throw new Error("移动端代码实验台未显示");
+  await mobile.screenshot({ path: path.join(output, "mobile-code-lab.png"), fullPage: true });
 
   if (consoleErrors.length) throw new Error(`Console errors: ${consoleErrors.join(" | ")}`);
   await browser.close();
